@@ -1,0 +1,73 @@
+{
+  "apiKeys": {
+    "comment": "Mock adapter doesn't require real API keys - these are just placeholders"
+  },
+  "models": {
+    "reasoning": {
+      "provider": "mock",
+      "model": "mock-reasoning-model",
+      "temperature": 0.1,
+      "maxTokens": 3000
+    },
+    "creative": {
+      "provider": "mock", 
+      "model": "mock-creative-model",
+      "temperature": 0.8,
+      "maxTokens": 2500
+    },
+    "factual": {
+      "provider": "mock",
+      "model": "mock-factual-model", 
+      "temperature": 0.2,
+      "maxTokens": 2000
+    },
+    "code": {
+      "provider": "mock",
+      "model": "mock-code-model",
+      "temperature": 0.1,
+      "maxTokens": 4000
+    },
+    "social": {
+      "provider": "mock",
+      "model": "mock-social-model",
+      "temperature": 0.6,
+      "maxTokens": 2000
+    },
+    "critic": {
+      "provider": "mock", 
+      "model": "mock-critic-model",
+      "temperature": 0.3,
+      "maxTokens": 2500
+    },
+    "coordinator": {
+      "provider": "mock",
+      "model": "mock-coordinator-model",
+      "temperature": 0.5,
+      "maxTokens": 3000
+    }
+  },
+  "orchestration": {
+    "consensusThreshold": 0.8,
+    "maxRetries": 3,
+    "timeoutMs": 30000,
+    "parallelAgents": 6
+  },
+  "_mock_adapter_features": {
+    "comment": "Mock adapter provides realistic simulation without API costs",
+    "features": [
+      "Agent-specific responses tailored to each specialization",
+      "Configurable latency simulation (default: 300ms)",
+      "Error simulation for resilience testing (1% error rate)",
+      "Response variations for realistic behavior",
+      "No network calls or API keys required",
+      "Instant setup for development and testing"
+    ],
+    "benefits": [
+      "Zero API costs during development",
+      "Consistent responses for testing",
+      "Offline development capability",
+      "Fast execution for CI/CD pipelines",
+      "Safe for experimentation"
+    ]
+  }
+}
