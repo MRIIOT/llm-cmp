@@ -7,6 +7,7 @@ import { ConfigLoader } from './config/config-loader.js';
 import { CMPDemo } from './core/cmp-demo.js';
 import { demonstratePhase2 } from './core/phase2-demo';
 import { runPhase3Demo } from './core/phase3-demo.js';
+import { demonstrateOrchestration } from './orchestration/phase4-demo.js';
 
 async function main(): Promise<void> {
   console.log('🌟 LLM Orchestration System');
@@ -46,6 +47,9 @@ async function main(): Promise<void> {
     } else if (phase === 'phase3') {
       console.log('🤖 Running Phase 3: Agent Specialization\n');
       await runPhase3Demo();
+    } else if (phase === 'phase4') {
+      console.log('🎼 Running Phase 4: Orchestration Engine\n');
+      await demonstrateOrchestration();
     } else {
       console.log('🚀 Running Complete System Demonstration\n');
       
@@ -60,6 +64,10 @@ async function main(): Promise<void> {
       console.log('\n🤖 Phase 3: Agent Specialization');
       console.log('================================');
       await runPhase3Demo();
+      
+      console.log('\n🎼 Phase 4: Orchestration Engine');
+      console.log('===============================');
+      await demonstrateOrchestration();
     }
 
     console.log('\n🎉 System demonstration completed successfully!');
@@ -69,6 +77,7 @@ async function main(): Promise<void> {
     console.log('  npm run dev phase1  # Run Phase 1 only');
     console.log('  npm run dev phase2  # Run Phase 2 only');
     console.log('  npm run dev phase3  # Run Phase 3 only');
+    console.log('  npm run dev phase4  # Run Phase 4 only');
 
   } catch (error) {
     console.error('\n❌ System demonstration failed:', error);
