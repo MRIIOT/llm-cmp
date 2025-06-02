@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc && node dist/index.js",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "demo:mcp-integration": "tsc && node dist/demo/mcp-integration-demo.js"
   },
   "dependencies": {
     "axios": "^1.6.0"

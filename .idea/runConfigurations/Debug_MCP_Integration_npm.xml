@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Debug MCP Integration (npm)" type="js.build_tools.npm">
+    <package-json value="$PROJECT_DIR$/package.json" />
+    <command value="run" />
+    <scripts>
+      <script value="demo:mcp-integration" />
+    </scripts>
+    <node-interpreter value="project" />
+    <node-options value="--inspect-brk=9229" />
+    <envs />
+    <method v="2" />
+  </configuration>
+</component>
