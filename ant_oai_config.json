@@ -1,8 +1,7 @@
 {
   "apiKeys": {
     "openai": "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",
-    "anthropic": "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",
-    "google": "AIzaSyA-kz1Jkc3KDIAkn22qsv_WNiXvhbHrbqg"
+    "anthropic": "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"
   },
   "models": {
     "reasoning": {
@@ -18,8 +17,8 @@
       "maxTokens": 2500
     },
     "factual": {
-      "provider": "google",
-      "model": "gemini-1.5-pro", 
+      "provider": "anthropic",
+      "model": "claude-3-5-sonnet-20241022", 
       "temperature": 0.2,
       "maxTokens": 2000
     },
@@ -30,8 +29,8 @@
       "maxTokens": 4000
     },
     "social": {
-      "provider": "google",
-      "model": "gemini-pro",
+      "provider": "openai",
+      "model": "gpt-4o",
       "temperature": 0.6,
       "maxTokens": 2000
     },
@@ -53,30 +52,5 @@
     "maxRetries": 3,
     "timeoutMs": 30000,
     "parallelAgents": 6
-  },
-  "_localModelsExample": {
-    "comment": "Example configuration for using LM Studio local models",
-    "models": {
-      "reasoning": {
-        "provider": "lmstudio",
-        "model": "lmstudio-local",
-        "temperature": 0.1,
-        "maxTokens": 3000,
-        "config": {
-          "baseUrl": "http://localhost:1234",
-          "timeout": 120000
-        }
-      },
-      "creative": {
-        "provider": "lmstudio",
-        "model": "lmstudio-local",
-        "temperature": 0.8,
-        "maxTokens": 2500,
-        "config": {
-          "baseUrl": "http://localhost:1234",
-          "timeout": 120000
-        }
-      }
-    }
   }
 }

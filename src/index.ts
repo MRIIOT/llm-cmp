@@ -8,6 +8,9 @@ import { CMPDemo } from './core/cmp-demo.js';
 import { demonstratePhase2 } from './core/phase2-demo';
 import { runPhase3Demo } from './core/phase3-demo.js';
 import { demonstrateOrchestration } from './orchestration/phase4-demo.js';
+import { runMockAdapterDemo } from './models/mock-adapter-demo.js';
+import { runGeminiAdapterDemo } from './models/gemini-adapter-demo.js';
+import { demonstrateLMStudioAdapter } from './models/lmstudio-adapter-demo.js';
 
 async function main(): Promise<void> {
   console.log('🌟 LLM Orchestration System');
@@ -50,6 +53,18 @@ async function main(): Promise<void> {
     } else if (phase === 'phase4') {
       console.log('🎼 Running Phase 4: Orchestration Engine\n');
       await demonstrateOrchestration();
+    } else if (phase === 'phase4.5') {
+      console.log('🎭 Running Phase 4.5: Mock Adapter Testing\n');
+      await runMockAdapterDemo();
+    } else if (phase === 'mock') {
+      console.log('🎭 Running Mock Adapter Demonstration\n');
+      await runMockAdapterDemo();
+    } else if (phase === 'gemini') {
+      console.log('🌟 Running Gemini Adapter Demonstration\n');
+      await runGeminiAdapterDemo();
+    } else if (phase === 'lmstudio') {
+      console.log('🏠 Running LM Studio Adapter Demonstration\n');
+      await demonstrateLMStudioAdapter();
     } else {
       console.log('🚀 Running Complete System Demonstration\n');
       
@@ -78,6 +93,10 @@ async function main(): Promise<void> {
     console.log('  npm run dev phase2  # Run Phase 2 only');
     console.log('  npm run dev phase3  # Run Phase 3 only');
     console.log('  npm run dev phase4  # Run Phase 4 only');
+    console.log('  npm run dev phase4.5 # Run Phase 4.5 (Mock Adapter)');
+    console.log('  npm run dev mock    # Run Mock Adapter Demo');
+    console.log('  npm run dev gemini  # Run Gemini Adapter Demo');
+    console.log('  npm run dev lmstudio # Run LM Studio Adapter Demo');
 
   } catch (error) {
     console.error('\n❌ System demonstration failed:', error);

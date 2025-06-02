@@ -53,30 +53,5 @@
     "maxRetries": 3,
     "timeoutMs": 30000,
     "parallelAgents": 6
-  },
-  "_localModelsExample": {
-    "comment": "Example configuration for using LM Studio local models",
-    "models": {
-      "reasoning": {
-        "provider": "lmstudio",
-        "model": "lmstudio-local",
-        "temperature": 0.1,
-        "maxTokens": 3000,
-        "config": {
-          "baseUrl": "http://localhost:1234",
-          "timeout": 120000
-        }
-      },
-      "creative": {
-        "provider": "lmstudio",
-        "model": "lmstudio-local",
-        "temperature": 0.8,
-        "maxTokens": 2500,
-        "config": {
-          "baseUrl": "http://localhost:1234",
-          "timeout": 120000
-        }
-      }
-    }
   }
 }

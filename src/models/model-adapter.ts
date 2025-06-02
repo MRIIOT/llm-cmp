@@ -54,8 +54,13 @@ export abstract class ModelAPIAdapter {
       'claude-3-sonnet': 200000,
       'claude-3-haiku': 200000,
       'claude-3.5-sonnet': 200000,
-      'llama-2-70b': 4096,
-      'gemini-pro': 32000
+      'gemini-pro': 32768,
+      'gemini-pro-vision': 16384,
+      'gemini-ultra': 32768,
+      'gemini-1.0-pro': 32768,
+      'gemini-1.5-pro': 1048576,
+      'gemini-1.5-flash': 1048576,
+      'llama-2-70b': 4096
     };
     return limits[this.modelType] || 4096;
   }

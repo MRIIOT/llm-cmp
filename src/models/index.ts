@@ -8,6 +8,9 @@ export type { ModelResponse, ModelOptions } from './model-adapter';
 // Specific API adapters
 export { OpenAIAdapter } from './openai-adapter';
 export { AnthropicAdapter } from './anthropic-adapter';
+export { MockAdapter } from './mock-adapter';
+export { GeminiAdapter } from './gemini-adapter';
+export { LMStudioAdapter } from './lmstudio-adapter';
 
 // Interface components
 export { LLMInterface } from './llm-interface';
@@ -24,14 +27,31 @@ export type { ParsedResponse, ReasoningStep } from './response-parser';
 import { ModelAPIAdapter } from './model-adapter';
 import { OpenAIAdapter } from './openai-adapter';
 import { AnthropicAdapter } from './anthropic-adapter';
+import { MockAdapter } from './mock-adapter';
+import { GeminiAdapter } from './gemini-adapter';
+import { LMStudioAdapter } from './lmstudio-adapter';
 import { LLMInterface } from './llm-interface';
 
 // Factory function for creating adapters based on model type
 export function createModelAdapter(modelType: string, apiKey: string): ModelAPIAdapter {
-  if (modelType.startsWith('gpt-') || modelType.includes('openai')) {
+  if (modelType.startsWith('mock-') || modelType.includes('mock')) {
+    // Mock adapter doesn't need real API key, configure for testing
+    return new MockAdapter(modelType, {
+      latencyMs: 300,
+      errorRate: 0.01, // 1% error rate for testing
+      agentSpecificResponses: true,
+      responseVariations: true
+    });
+  } else if (modelType.startsWith('gpt-') || modelType.includes('openai')) {
     return new OpenAIAdapter(modelType, apiKey);
   } else if (modelType.startsWith('claude-') || modelType.includes('anthropic')) {
     return new AnthropicAdapter(modelType, apiKey);
+  } else if (modelType.startsWith('gemini-') || modelType.includes('gemini')) {
+    return new GeminiAdapter(modelType, apiKey);
+  } else if (modelType.includes('lmstudio') || modelType.includes('local')) {
+    // LM Studio adapter uses model name and optional config, not API key
+    const config = typeof apiKey === 'object' ? apiKey : {};
+    return new LMStudioAdapter(modelType, config);
   } else {
     throw new Error(`Unsupported model type: ${modelType}`);
   }
@@ -69,11 +89,24 @@ export function createModelInterface(agent: any): LLMInterface {
     }
     
     // Get API key based on provider
-    const apiKey = modelConfig.provider === 'openai' 
-      ? config.apiKeys.openai 
-      : config.apiKeys.anthropic;
+    let apiKey: string;
+    if (modelConfig.provider === 'mock') {
+      apiKey = 'mock-api-key';
+    } else if (modelConfig.provider === 'openai') {
+      apiKey = config.apiKeys.openai;
+    } else if (modelConfig.provider === 'anthropic') {
+      apiKey = config.apiKeys.anthropic;
+    } else if (modelConfig.provider === 'google' || modelConfig.provider === 'gemini') {
+      // Support both 'google' and 'gemini' as provider names
+      apiKey = config.apiKeys.google || config.apiKeys.gemini || '';
+    } else if (modelConfig.provider === 'lmstudio') {
+      // LM Studio doesn't use API keys, pass configuration instead
+      apiKey = modelConfig.config || { baseUrl: 'http://localhost:1234', timeout: 120000 };
+    } else {
+      throw new Error(`Unsupported provider: ${modelConfig.provider}`);
+    }
     
-    if (!apiKey || apiKey.includes('your-')) {
+    if (modelConfig.provider !== 'mock' && modelConfig.provider !== 'lmstudio' && (!apiKey || apiKey.includes('your-') || apiKey.includes('_here'))) {
       throw new Error(`Invalid API key for provider: ${modelConfig.provider}`);
     }
     

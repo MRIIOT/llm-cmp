@@ -36,7 +36,26 @@ export class ConfigLoader {
       
       console.log('✅ Configuration loaded successfully');
       console.log(`   📊 Models configured: ${Object.keys(this.config.models).length}`);
-      console.log(`   🔑 API keys: OpenAI=${!!this.config.apiKeys.openai}, Anthropic=${!!this.config.apiKeys.anthropic}`);
+      
+      // Show API key status for providers that need them
+      const apiKeyStatus = [];
+      if (this.config.apiKeys.openai) apiKeyStatus.push(`OpenAI=${!!this.config.apiKeys.openai}`);
+      if (this.config.apiKeys.anthropic) apiKeyStatus.push(`Anthropic=${!!this.config.apiKeys.anthropic}`);
+      if (this.config.apiKeys.google) apiKeyStatus.push(`Google=${!!this.config.apiKeys.google}`);
+      
+      // Check if using local providers
+      const hasLMStudio = Object.values(this.config.models).some((model: any) => model.provider === 'lmstudio');
+      const hasMock = Object.values(this.config.models).some((model: any) => model.provider === 'mock');
+      
+      if (apiKeyStatus.length > 0) {
+        console.log(`   🔑 API keys: ${apiKeyStatus.join(', ')}`);
+      }
+      if (hasLMStudio) {
+        console.log(`   🏠 LM Studio: Local inference enabled`);
+      }
+      if (hasMock) {
+        console.log(`   🎭 Mock adapter: Testing mode enabled`);
+      }
       
       return this.config;
     } catch (error) {
@@ -60,9 +79,17 @@ export class ConfigLoader {
     return this.config;
   }
 
-  public getAPIKey(provider: 'openai' | 'anthropic'): string {
+  public getAPIKey(provider: 'openai' | 'anthropic' | 'google' | 'gemini' | 'lmstudio'): string {
     const config = this.getConfig();
-    const key = config.apiKeys[provider];
+    
+    // LM Studio doesn't use API keys
+    if (provider === 'lmstudio') {
+      return 'local-api-key'; // Placeholder for local inference
+    }
+    
+    // Handle provider aliases
+    const providerKey = provider === 'gemini' ? 'google' : provider;
+    const key = config.apiKeys[providerKey as keyof typeof config.apiKeys];
     
     if (!key || key.includes('your-') || key.includes('here')) {
       throw new Error(
@@ -95,8 +122,20 @@ export class ConfigLoader {
       throw new Error('Invalid config: apiKeys section required');
     }
 
-    if (!config.apiKeys.openai || !config.apiKeys.anthropic) {
-      throw new Error('Invalid config: openai and anthropic API keys required');
+    // Check which providers are actually being used
+    const usedProviders = new Set(Object.values(config.models).map((model: any) => model.provider));
+    
+    // Basic API keys should be present for providers that need them
+    if (usedProviders.has('openai') && !config.apiKeys.openai) {
+      throw new Error('Invalid config: openai API key required when using OpenAI provider');
+    }
+    
+    if (usedProviders.has('anthropic') && !config.apiKeys.anthropic) {
+      throw new Error('Invalid config: anthropic API key required when using Anthropic provider');
+    }
+    
+    if ((usedProviders.has('google') || usedProviders.has('gemini')) && !config.apiKeys.google) {
+      throw new Error('Invalid config: google API key required when using Google/Gemini provider');
     }
 
     // Validate models structure
@@ -115,7 +154,7 @@ export class ConfigLoader {
         throw new Error(`Invalid config: ${agent} agent missing provider or model`);
       }
 
-      if (!['openai', 'anthropic'].includes(modelConfig.provider)) {
+      if (!['openai', 'anthropic', 'google', 'gemini', 'mock', 'lmstudio'].includes(modelConfig.provider)) {
         throw new Error(`Invalid config: ${agent} agent has unsupported provider ${modelConfig.provider}`);
       }
 
@@ -158,7 +197,8 @@ export class ConfigLoader {
     return {
       apiKeys: {
         openai: "sk-your-openai-key-here",
-        anthropic: "sk-ant-your-anthropic-key-here"
+        anthropic: "sk-ant-your-anthropic-key-here",
+        google: "AIza_your_google_ai_studio_api_key_here_39_chars"
       },
       models: {
         reasoning: {
@@ -174,8 +214,8 @@ export class ConfigLoader {
           maxTokens: 2500
         },
         factual: {
-          provider: "anthropic",
-          model: "claude-3-sonnet-20240229",
+          provider: "google",
+          model: "gemini-1.5-pro",
           temperature: 0.2,
           maxTokens: 2000
         },
@@ -186,8 +226,8 @@ export class ConfigLoader {
           maxTokens: 4000
         },
         social: {
-          provider: "openai",
-          model: "gpt-4",
+          provider: "google",
+          model: "gemini-pro",
           temperature: 0.6,
           maxTokens: 2000
         },

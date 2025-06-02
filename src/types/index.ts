@@ -104,16 +104,18 @@ export interface VerificationProperties {
 // ===============================================
 
 export interface ModelConfig {
-  provider: 'openai' | 'anthropic';
+  provider: 'openai' | 'anthropic' | 'google' | 'gemini' | 'mock' | 'lmstudio';
   model: string;
   temperature: number;
   maxTokens: number;
+  config?: any; // For provider-specific configuration (e.g., LM Studio baseUrl)
 }
 
 export interface APIConfig {
   apiKeys: {
     openai: string;
     anthropic: string;
+    google?: string;
   };
   models: Record<string, ModelConfig>;
   orchestration: {

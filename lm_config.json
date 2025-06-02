@@ -1,0 +1,147 @@
+{
+  "apiKeys": {
+    "comment": "LM Studio doesn't require API keys - all inference is local"
+  },
+  "models": {
+    "reasoning": {
+      "provider": "lmstudio",
+      "model": "lmstudio-local",
+      "temperature": 0.1,
+      "maxTokens": 3000,
+      "config": {
+        "baseUrl": "http://localhost:1234",
+        "timeout": 120000
+      }
+    },
+    "creative": {
+      "provider": "lmstudio", 
+      "model": "lmstudio-local",
+      "temperature": 0.8,
+      "maxTokens": 2500,
+      "config": {
+        "baseUrl": "http://localhost:1234",
+        "timeout": 120000
+      }
+    },
+    "factual": {
+      "provider": "lmstudio",
+      "model": "lmstudio-local", 
+      "temperature": 0.2,
+      "maxTokens": 2000,
+      "config": {
+        "baseUrl": "http://localhost:1234",
+        "timeout": 120000
+      }
+    },
+    "code": {
+      "provider": "lmstudio",
+      "model": "lmstudio-local",
+      "temperature": 0.1,
+      "maxTokens": 4000,
+      "config": {
+        "baseUrl": "http://localhost:1234",
+        "timeout": 120000
+      }
+    },
+    "social": {
+      "provider": "lmstudio",
+      "model": "lmstudio-local",
+      "temperature": 0.6,
+      "maxTokens": 2000,
+      "config": {
+        "baseUrl": "http://localhost:1234",
+        "timeout": 120000
+      }
+    },
+    "critic": {
+      "provider": "lmstudio", 
+      "model": "lmstudio-local",
+      "temperature": 0.3,
+      "maxTokens": 2500,
+      "config": {
+        "baseUrl": "http://localhost:1234",
+        "timeout": 120000
+      }
+    },
+    "coordinator": {
+      "provider": "lmstudio",
+      "model": "lmstudio-local",
+      "temperature": 0.5,
+      "maxTokens": 3000,
+      "config": {
+        "baseUrl": "http://localhost:1234",
+        "timeout": 120000
+      }
+    }
+  },
+  "orchestration": {
+    "consensusThreshold": 0.8,
+    "maxRetries": 3,
+    "timeoutMs": 30000,
+    "parallelAgents": 6
+  },
+  "_setup_instructions": {
+    "comment": "Setup instructions for using LM Studio with this configuration",
+    "steps": [
+      "1. Download and install LM Studio from https://lmstudio.ai/",
+      "2. Download a capable model (recommended: Llama 2 13B, Mistral 7B, or Code Llama)",
+      "3. Load the model in LM Studio",
+      "4. Go to Server tab in LM Studio",
+      "5. Click 'Start Server' (default: http://localhost:1234)",
+      "6. Copy this file to config.json in your project root",
+      "7. Run: npm run dev (all agents will use your local model)",
+      "8. For different models per agent, load multiple models and use different ports"
+    ],
+    "model_recommendations": {
+      "reasoning": "Models with strong logical reasoning (Llama 2 70B, Mixtral 8x7B)",
+      "creative": "Models with creative writing capabilities (Llama 2, Mistral)",
+      "factual": "Models with broad knowledge base (Llama 2, Falcon)",
+      "code": "Code-specialized models (Code Llama, WizardCoder, StarCoder)",
+      "social": "Conversational models (Llama 2, Vicuna, Alpaca)",
+      "critic": "Analytical models (Llama 2, Mistral)",
+      "coordinator": "Balanced general-purpose models (Llama 2, Mistral)"
+    },
+    "performance_tips": [
+      "Use quantized models (Q4, Q5) for faster inference on consumer hardware",
+      "Adjust maxTokens based on your model's context window",
+      "Increase timeout for larger models or slower hardware",
+      "Consider using different LM Studio instances on different ports for specialized models"
+    ]
+  },
+  "_multi_model_example": {
+    "comment": "Example configuration for using different specialized models",
+    "description": "Run multiple LM Studio instances on different ports with specialized models",
+    "models": {
+      "reasoning": {
+        "provider": "lmstudio",
+        "model": "llama-2-70b-reasoning",
+        "temperature": 0.1,
+        "maxTokens": 3000,
+        "config": {
+          "baseUrl": "http://localhost:1234",
+          "timeout": 120000
+        }
+      },
+      "code": {
+        "provider": "lmstudio",
+        "model": "codellama-34b-instruct",
+        "temperature": 0.1,
+        "maxTokens": 4000,
+        "config": {
+          "baseUrl": "http://localhost:1235",
+          "timeout": 120000
+        }
+      },
+      "creative": {
+        "provider": "lmstudio",
+        "model": "mistral-7b-creative",
+        "temperature": 0.8,
+        "maxTokens": 2500,
+        "config": {
+          "baseUrl": "http://localhost:1236",
+          "timeout": 120000
+        }
+      }
+    }
+  }
+}
