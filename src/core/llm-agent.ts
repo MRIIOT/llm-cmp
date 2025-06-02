@@ -11,6 +11,15 @@ import {
   ReasoningVote 
 } from '../types/index.js';
 import { SemanticPose } from './semantic-pose.js';
+import { 
+  LLM_AGENT_TYPES, 
+  AgentType, 
+  getAgentSpecialization, 
+  getReasoningTypesForAgent,
+  KnowledgeFrame
+} from '../agents/agent-types.js';
+import { SpecializedAgentProcessor } from '../agents/specialized-agents.js';
+import { KnowledgeDomainTransformer } from './knowledge-domains.js';
 
 export class LLMAgent {
   public type: LLMAgentType;
@@ -21,6 +30,8 @@ export class LLMAgent {
   public reasoning_history: ReasoningStep[];
   public confidence_threshold: number;
   public requestCount: number;
+  public nativeDomain: KnowledgeFrame;
+  public agentSpecialization: any;
 
   constructor(agentType: LLMAgentType, specialization: string, model: string) {
     this.type = agentType;
@@ -29,8 +40,12 @@ export class LLMAgent {
     this.evidence = new Map();
     this.inbox = [];
     this.reasoning_history = [];
-    this.confidence_threshold = 0.7;
     this.requestCount = 0;
+    
+    // Initialize specialization-specific properties
+    this.agentSpecialization = getAgentSpecialization(agentType as AgentType);
+    this.confidence_threshold = this.agentSpecialization?.confidenceThreshold || 0.7;
+    this.nativeDomain = KnowledgeDomainTransformer.getAgentNativeDomain(agentType as AgentType);
   }
 
   // ⟦CREATE_MSG⟧ adapted for LLMs
@@ -174,17 +189,73 @@ export class LLMAgent {
     this.requestCount = 0;
   }
 
+  // Get agent's preferred reasoning types
+  getPreferredReasoningTypes(): string[] {
+    return getReasoningTypesForAgent(this.type as AgentType);
+  }
+
+  // Adjust confidence for cross-domain reasoning
+  adjustConfidenceForDomain(confidence: number, targetDomain: KnowledgeFrame): number {
+    return KnowledgeDomainTransformer.adjustConfidenceForDomain(
+      confidence, 
+      this.type as AgentType, 
+      targetDomain
+    );
+  }
+
+  // Transform semantic pose to target domain
+  transformToTargetDomain(pose: SemanticPose, targetDomain: KnowledgeFrame): SemanticPose {
+    return KnowledgeDomainTransformer.transform(pose, this.nativeDomain, targetDomain);
+  }
+
+  // Check if agent can effectively work in target domain
+  canWorkInDomain(targetDomain: KnowledgeFrame): boolean {
+    const compatibility = KnowledgeDomainTransformer.checkDomainCompatibility(
+      this.nativeDomain, 
+      targetDomain
+    );
+    return compatibility.compatible && compatibility.similarity > 0.4;
+  }
+
+  // Get agent specialization info
+  getSpecializationInfo(): {
+    type: string;
+    domain: KnowledgeFrame;
+    focus: string;
+    strengths: string[];
+    confidenceThreshold: number;
+  } {
+    return {
+      type: this.type,
+      domain: this.nativeDomain,
+      focus: this.agentSpecialization?.focus || 'general',
+      strengths: this.agentSpecialization?.strengths || [],
+      confidenceThreshold: this.confidence_threshold
+    };
+  }
+
+  // Enhanced reasoning quality assessment using specialization
+  assessSpecializedReasoningQuality(reasoning: ReasoningStep[]): number {
+    if (reasoning.length === 0) return 0.1;
+    
+    const baseQuality = this.assessReasoningQuality(reasoning);
+    const preferredTypes = this.getPreferredReasoningTypes();
+    
+    // Bonus for using agent's preferred reasoning types
+    const typeMatchBonus = reasoning.filter(step => 
+      preferredTypes.includes(step.type)
+    ).length / reasoning.length * 0.2;
+    
+    // Penalty for working outside native domain
+    const domainPenalty = this.nativeDomain === this.nativeDomain ? 0 : 0.1;
+    
+    return Math.min(baseQuality + typeMatchBonus - domainPenalty, 1.0);
+  }
+
   // Helper methods
   private extractSemanticMorphology(reasoning: ReasoningStep[]): SemanticMorphology {
-    return {
-      logical_structure: {
-        premises: reasoning.filter(r => r.type === 'premise'),
-        inferences: reasoning.filter(r => r.type === 'inference'),
-        conclusions: reasoning.filter(r => r.type === 'conclusion')
-      },
-      concept_relations: reasoning.map(r => r.concept),
-      evidence_chain: reasoning.map(r => r.type)
-    };
+    // Use specialized processor for agent-specific morphology extraction
+    return SpecializedAgentProcessor.extractSemanticMorphology(reasoning, this.type as AgentType);
   }
 
   private compatibleReasoning(reasoning1: ReasoningStep[], reasoning2: ReasoningStep[]): boolean {
