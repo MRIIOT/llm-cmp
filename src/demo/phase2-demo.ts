@@ -1,3 +1,8 @@
+// ===============================================
+// PHASE 2 DEMONSTRATION
+// Model Interface Layer Demo
+// ===============================================
+
 // Phase 2 Demonstration: Model Interface Layer
 // Tests the LLM API adapters and interface translation
 
@@ -8,8 +13,8 @@ import {
   ResponseParser,
   CMPMessage 
 } from '../models';
-import { LLMAgent } from './llm-agent';
-import { SemanticPose } from './semantic-pose';
+import { LLMAgent } from '../core/llm-agent';
+import { SemanticPose } from '../core/semantic-pose';
 import { LLM_AGENT_TYPES } from '../types';
 import { ConfigLoader } from '../config/config-loader';
 

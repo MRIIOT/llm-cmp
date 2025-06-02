@@ -2,8 +2,8 @@
 // CMP PHASE 1 DEMONSTRATION
 // ===============================================
 
-import { LLMAgent } from './llm-agent.js';
-import { SemanticPose } from './semantic-pose.js';
+import { LLMAgent } from '../core/llm-agent.js';
+import { SemanticPose } from '../core/semantic-pose.js';
 import { LLM_AGENT_TYPES } from '../types/index.js';
 import { ConfigLoader } from '../config/config-loader.js';
 

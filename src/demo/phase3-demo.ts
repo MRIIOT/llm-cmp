@@ -1,10 +1,15 @@
+// ===============================================
+// PHASE 3 DEMONSTRATION
+// Agent Specialization System Demo
+// ===============================================
+
 /**
  * Phase 3 Demonstration: Agent Specialization System
  * Shows distinct specialized behaviors of different agent types
  */
 
-import { LLMAgent } from './llm-agent.js';
-import { SemanticPose } from './semantic-pose.js';
+import { LLMAgent } from '../core/llm-agent.js';
+import { SemanticPose } from '../core/semantic-pose.js';
 import { PromptTemplateManager } from '../models/prompt-template-manager.js';
 import { 
   LLM_AGENT_TYPES, 
@@ -13,7 +18,7 @@ import {
   KNOWLEDGE_FRAMES 
 } from '../agents/agent-types.js';
 import { SpecializedAgentProcessor } from '../agents/specialized-agents.js';
-import { KnowledgeDomainTransformer } from './knowledge-domains.js';
+import { KnowledgeDomainTransformer } from '../core/knowledge-domains.js';
 import { ReasoningStep } from '../types/index.js';
 
 /**

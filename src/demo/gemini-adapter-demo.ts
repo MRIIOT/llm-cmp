@@ -1,8 +1,8 @@
 // Google Gemini Adapter Demonstration
 // Shows how the Gemini adapter works with Google AI Studio API
 
-import { GeminiAdapter } from './gemini-adapter';
-import { ModelOptions } from './model-adapter';
+import { GeminiAdapter } from '../models/gemini-adapter';
+import { ModelOptions } from '../models/model-adapter';
 
 async function demonstrateGeminiAdapter() {
   console.log('🌟 Google Gemini Adapter Demonstration\n' + '='.repeat(50));
@@ -159,7 +159,7 @@ async function demonstrateGeminiIntegration() {
 
   try {
     // Test model factory with Gemini
-    const { createModelAdapter } = await import('./index');
+    const { createModelAdapter } = await import('../models/index');
     
     console.log('🏭 Testing model factory with Gemini models...');
     

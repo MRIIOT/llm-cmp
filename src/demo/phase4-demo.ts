@@ -1,8 +1,13 @@
 // ===============================================
+// PHASE 4 DEMONSTRATION
+// LLM Orchestration Engine Demo
+// ===============================================
+
+// ===============================================
 // PHASE 4 DEMONSTRATION: LLM ORCHESTRATION ENGINE
 // ===============================================
 
-import { LLMOrchestrator, OrchestrationRequest } from './llm-orchestrator.js';
+import { LLMOrchestrator, OrchestrationRequest } from '../orchestration/llm-orchestrator.js';
 import { LLM_AGENT_TYPES } from '../types/index.js';
 
 export async function demonstrateOrchestration(): Promise<void> {

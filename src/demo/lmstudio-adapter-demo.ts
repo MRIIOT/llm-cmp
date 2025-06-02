@@ -1,4 +1,4 @@
-import { LMStudioAdapter } from './lmstudio-adapter';
+import { LMStudioAdapter } from '../models/lmstudio-adapter';
 import { LLM_AGENT_TYPES } from '../agents/agent-types';
 
 /**

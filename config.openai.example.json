@@ -1,0 +1,55 @@
+{
+  "apiKeys": {
+    "openai": "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",
+  },
+  "models": {
+    "reasoning": {
+      "provider": "openai",
+      "model": "gpt-4o",
+      "temperature": 0.1,
+      "maxTokens": 3000
+    },
+    "creative": {
+      "provider": "openai", 
+      "model": "gpt-4o",
+      "temperature": 0.8,
+      "maxTokens": 2500
+    },
+    "factual": {
+      "provider": "openai",
+      "model": "gpt-4o",
+      "temperature": 0.2,
+      "maxTokens": 2000
+    },
+    "code": {
+      "provider": "openai",
+      "model": "gpt-4o",
+      "temperature": 0.1,
+      "maxTokens": 4000
+    },
+    "social": {
+      "provider": "openai",
+      "model": "gpt-4o",
+      "temperature": 0.6,
+      "maxTokens": 2000
+    },
+    "critic": {
+      "provider": "openai",
+      "model": "gpt-4o",
+      "temperature": 0.3,
+      "maxTokens": 2500
+    },
+    "coordinator": {
+      "provider": "openai",
+      "model": "gpt-4o",
+      "temperature": 0.5,
+      "maxTokens": 3000
+    }
+  },
+  "orchestration": {
+    "consensusThreshold": 0.8,
+    "maxRetries": 3,
+    "timeoutMs": 30000,
+    "parallelAgents": 6
+  }
+}

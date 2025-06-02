@@ -1,8 +1,13 @@
+// ===============================================
+// MOCK ADAPTER DEMONSTRATION
+// Testing without API calls, configurable responses
+// ===============================================
+
 // Mock Adapter Demonstration
 // Shows how the mock adapter works for testing without API calls
 
-import { MockAdapter } from './mock-adapter';
-import { ModelOptions } from './model-adapter';
+import { MockAdapter } from '../models/mock-adapter';
+import { ModelOptions } from '../models/model-adapter';
 
 async function demonstrateMockAdapter() {
   console.log('🎭 Mock Adapter Demonstration\n' + '='.repeat(50));
@@ -115,7 +120,7 @@ async function demonstrateOrchestrationIntegration() {
   try {
     // Import orchestration components
     const { LLMOrchestrator } = await import('../orchestration/llm-orchestrator');
-    const { createLLMInterface } = await import('./index');
+    const { createLLMInterface } = await import('../models/index');
     
     // Create mock agents with different specializations
     const mockAgents = [

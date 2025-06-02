@@ -9,6 +9,3 @@ export type {
   OrchestrationResult, 
   AgentExecution 
 } from './llm-orchestrator.js';
-
-// Demonstration
-export { demonstrateOrchestration } from './phase4-demo.js';
