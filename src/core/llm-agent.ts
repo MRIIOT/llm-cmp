@@ -235,27 +235,164 @@ export class LLMAgent {
   }
 
   // Enhanced reasoning quality assessment using specialization
-  assessSpecializedReasoningQuality(reasoning: ReasoningStep[]): number {
+  assessSpecializedReasoningQuality(reasoning: ReasoningStep[], targetDomain?: KnowledgeFrame): number {
     if (reasoning.length === 0) return 0.1;
     
     const baseQuality = this.assessReasoningQuality(reasoning);
     const preferredTypes = this.getPreferredReasoningTypes();
     
-    // Bonus for using agent's preferred reasoning types
-    const typeMatchBonus = reasoning.filter(step => 
+    // Calculate specialization match bonus
+    const typeMatchRatio = reasoning.filter(step => 
       preferredTypes.includes(step.type)
-    ).length / reasoning.length * 0.2;
+    ).length / reasoning.length;
+    const specializationBonus = typeMatchRatio * 0.15; // Reduced from 0.2
     
-    // Penalty for working outside native domain
-    const domainPenalty = this.nativeDomain === this.nativeDomain ? 0 : 0.1;
+    // Calculate domain compatibility penalty (fixed the bug)
+    const workingDomain = targetDomain || this.nativeDomain;
+    let domainPenalty = 0;
+    if (workingDomain !== this.nativeDomain) {
+      const compatibility = KnowledgeDomainTransformer.checkDomainCompatibility(
+        this.nativeDomain, 
+        workingDomain
+      );
+      domainPenalty = (1 - compatibility.similarity) * 0.2;
+    }
     
-    return Math.min(baseQuality + typeMatchBonus - domainPenalty, 1.0);
+    // Calculate reasoning depth and diversity factors
+    const depthFactor = this.calculateDepthQuality(reasoning);
+    const diversityFactor = this.calculateDiversityQuality(reasoning);
+    const coherenceFactor = this.calculateCoherenceQuality(reasoning);
+    
+    // Weighted combination with more discriminating formula
+    const qualityScore = (
+      baseQuality * 0.4 +           // Base confidence and structure
+      specializationBonus * 0.2 +   // Using appropriate reasoning types
+      depthFactor * 0.15 +          // Reasoning depth and complexity
+      diversityFactor * 0.15 +      // Diversity of reasoning approaches
+      coherenceFactor * 0.1         // Logical coherence and flow
+    ) - domainPenalty;
+    
+    // More realistic scoring range: 0.3 to 0.95 instead of easy 1.0
+    return Math.max(0.3, Math.min(qualityScore, 0.95));
   }
 
   // Helper methods
   private extractSemanticMorphology(reasoning: ReasoningStep[]): SemanticMorphology {
     // Use specialized processor for agent-specific morphology extraction
     return SpecializedAgentProcessor.extractSemanticMorphology(reasoning, this.type as AgentType);
+  }
+
+  // Calculate depth quality based on reasoning complexity and chain length
+  private calculateDepthQuality(reasoning: ReasoningStep[]): number {
+    if (reasoning.length === 0) return 0;
+    
+    // Analyze reasoning chain depth
+    const chainDepth = reasoning.length;
+    const avgContentLength = reasoning.reduce((sum, step) => sum + step.content.length, 0) / reasoning.length;
+    
+    // Optimal range: 15-40 reasoning steps with substantial content
+    const depthScore = chainDepth >= 15 && chainDepth <= 40 ? 0.8 : 
+                     chainDepth >= 10 && chainDepth <= 50 ? 0.6 :
+                     chainDepth >= 5 ? 0.4 : 0.2;
+    
+    const contentScore = avgContentLength >= 100 ? 0.8 :
+                        avgContentLength >= 50 ? 0.6 : 0.4;
+    
+    return (depthScore + contentScore) / 2;
+  }
+
+  // Calculate diversity quality based on reasoning type variety
+  private calculateDiversityQuality(reasoning: ReasoningStep[]): number {
+    if (reasoning.length === 0) return 0;
+    
+    const uniqueTypes = new Set(reasoning.map(r => r.type));
+    const typeRatio = uniqueTypes.size / reasoning.length;
+    
+    // Balance between diversity and focus
+    if (typeRatio > 0.7) return 0.4; // Too scattered
+    if (typeRatio >= 0.3 && typeRatio <= 0.6) return 0.8; // Good balance
+    if (typeRatio >= 0.2) return 0.6; // Somewhat focused
+    return 0.3; // Too repetitive
+  }
+
+  // Calculate coherence quality based on logical flow and concept consistency
+  private calculateCoherenceQuality(reasoning: ReasoningStep[]): number {
+    if (reasoning.length === 0) return 0;
+    
+    // Check for logical flow patterns
+    const hasValidFlow = this.checkLogicalFlow(reasoning);
+    const conceptConsistency = this.checkConceptConsistency(reasoning);
+    const confidenceStability = this.checkConfidenceStability(reasoning);
+    
+    return (hasValidFlow + conceptConsistency + confidenceStability) / 3;
+  }
+
+  // Check for logical flow in reasoning chain
+  private checkLogicalFlow(reasoning: ReasoningStep[]): number {
+    let flowScore = 0;
+    let validTransitions = 0;
+    
+    for (let i = 0; i < reasoning.length - 1; i++) {
+      const current = reasoning[i];
+      const next = reasoning[i + 1];
+      
+      // Check for logical progression
+      if (this.isValidReasoningTransition(current.type, next.type)) {
+        validTransitions++;
+      }
+    }
+    
+    flowScore = reasoning.length > 1 ? validTransitions / (reasoning.length - 1) : 0.5;
+    return flowScore;
+  }
+
+  // Check if transition between reasoning types is logically valid
+  private isValidReasoningTransition(fromType: string, toType: string): boolean {
+    const validTransitions: Record<string, string[]> = {
+      'premise': ['inference', 'logical_step', 'analysis'],
+      'inference': ['conclusion', 'logical_step', 'implementation'],
+      'fact': ['factual_analysis', 'synthesis', 'implementation'],
+      'creative_insight': ['creative_idea', 'implementation', 'novel_perspective'],
+      'implementation_step': ['implementation', 'optimization', 'conclusion'],
+      'social_aspect': ['social_consideration', 'implementation', 'coordination_step'],
+      'critical_analysis': ['critique', 'implementation', 'improvement'],
+      'coordination_step': ['consensus', 'priority', 'implementation']
+    };
+    
+    return validTransitions[fromType]?.includes(toType) || 
+           toType === 'implementation' || // Implementation is generally a valid next step
+           fromType === toType; // Same type transitions are valid
+  }
+
+  // Check consistency of concepts across reasoning chain
+  private checkConceptConsistency(reasoning: ReasoningStep[]): number {
+    if (reasoning.length === 0) return 0;
+    
+    const concepts = reasoning.map(r => r.concept);
+    const uniqueConcepts = new Set(concepts);
+    
+    // Some repetition is good for coherence, but too much is redundant
+    const repetitionRatio = 1 - (uniqueConcepts.size / concepts.length);
+    
+    if (repetitionRatio >= 0.3 && repetitionRatio <= 0.6) return 0.8; // Good coherence
+    if (repetitionRatio >= 0.1 && repetitionRatio <= 0.7) return 0.6; // Acceptable
+    return 0.4; // Either too scattered or too repetitive
+  }
+
+  // Check stability of confidence scores across reasoning
+  private checkConfidenceStability(reasoning: ReasoningStep[]): number {
+    if (reasoning.length === 0) return 0;
+    
+    const confidences = reasoning.map(r => r.confidence);
+    const avgConfidence = confidences.reduce((sum, c) => sum + c, 0) / confidences.length;
+    const variance = confidences.reduce((sum, c) => sum + Math.pow(c - avgConfidence, 2), 0) / confidences.length;
+    const stdDev = Math.sqrt(variance);
+    
+    // Lower variance indicates more stable confidence (better quality)
+    if (stdDev <= 0.1) return 0.8; // Very stable
+    if (stdDev <= 0.2) return 0.6; // Reasonably stable  
+    if (stdDev <= 0.3) return 0.4; // Somewhat unstable
+    return 0.2; // Very unstable
   }
 
   private compatibleReasoning(reasoning1: ReasoningStep[], reasoning2: ReasoningStep[]): boolean {
@@ -298,12 +435,36 @@ export class LLMAgent {
   private assessReasoningQuality(reasoning: ReasoningStep[]): number {
     if (reasoning.length === 0) return 0.1;
     
-    // Quality factors
+    // More discriminating quality factors
     const avgConfidence = reasoning.reduce((sum, step) => sum + step.confidence, 0) / reasoning.length;
-    const depthBonus = Math.min(reasoning.length * 0.05, 0.2);
-    const diversityBonus = new Set(reasoning.map(r => r.type)).size * 0.1;
     
-    return Math.min(avgConfidence + depthBonus + diversityBonus, 1.0);
+    // Penalize overly confident reasoning (unrealistic)
+    const confidenceRealism = avgConfidence > 0.9 ? 0.6 : // Too overconfident
+                             avgConfidence >= 0.7 && avgConfidence <= 0.85 ? 0.8 : // Realistic confidence
+                             avgConfidence >= 0.5 ? 0.7 : // Modest confidence
+                             0.5; // Low confidence
+    
+    // Depth bonus - but with diminishing returns
+    const optimalLength = 25; // Optimal reasoning chain length
+    const lengthRatio = reasoning.length / optimalLength;
+    const depthBonus = lengthRatio <= 1 ? lengthRatio * 0.15 : // Growing bonus up to optimal
+                      lengthRatio <= 2 ? 0.15 - (lengthRatio - 1) * 0.05 : // Diminishing returns
+                      0.1; // Too long, penalty
+    
+    // Diversity bonus - but more conservative
+    const uniqueTypes = new Set(reasoning.map(r => r.type));
+    const diversityRatio = uniqueTypes.size / Math.max(reasoning.length, 1);
+    const diversityBonus = diversityRatio >= 0.3 && diversityRatio <= 0.6 ? 0.1 : // Good balance
+                          diversityRatio >= 0.2 ? 0.05 : // Some diversity
+                          0; // Too repetitive or too scattered
+    
+    // Content quality assessment
+    const avgContentLength = reasoning.reduce((sum, step) => sum + step.content.length, 0) / reasoning.length;
+    const contentQuality = avgContentLength >= 150 ? 0.1 : // Substantial content
+                          avgContentLength >= 80 ? 0.05 : // Adequate content
+                          0; // Too brief
+    
+    return Math.min(confidenceRealism + depthBonus + diversityBonus + contentQuality, 0.9);
   }
 
   private calculateVoteConfidence(votes: ReasoningVote[]): number {

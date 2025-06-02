@@ -349,7 +349,7 @@ export class Phase3Demo {
       type: reasoningType,
       concept: `${agentType}_${reasoningType}`,
       content,
-      confidence: 0.7 + (Math.random() * 0.2) // 0.7-0.9 range
+      confidence: this.generateRealisticConfidence(reasoningType, content, agentType)
     };
   }
 
@@ -368,6 +368,89 @@ export class Phase3Demo {
     };
 
     return summaries[agentType] || 'General analysis of the collaborative code editor requirements.';
+  }
+
+  /**
+   * Generate realistic confidence values based on reasoning type and content characteristics
+   */
+  private generateRealisticConfidence(reasoningType: string, content: string, agentType: string): number {
+    // Base confidence levels by reasoning type
+    const typeBaseConfidence: Record<string, number> = {
+      'premise': 0.8,              // Premises tend to be well-established
+      'fact': 0.85,               // Facts should be high confidence
+      'inference': 0.65,          // Inferences involve reasoning, lower confidence
+      'conclusion': 0.75,         // Conclusions are somewhat confident
+      'creative_idea': 0.55,      // Creative ideas are more speculative
+      'creative_insight': 0.6,    // Creative insights are somewhat speculative
+      'implementation': 0.7,      // Implementation steps are practical
+      'implementation_step': 0.7, // Implementation steps are practical
+      'critique': 0.65,           // Critiques involve subjective assessment
+      'critical_analysis': 0.65,  // Critical analysis is thorough but uncertain
+      'social_aspect': 0.6,       // Social aspects are subjective
+      'social_consideration': 0.6, // Social considerations are subjective
+      'coordination_step': 0.7,   // Coordination tends to be planned
+      'factual_analysis': 0.8,    // Factual analysis should be confident
+      'logical_step': 0.75        // Logical steps are reasoned
+    };
+
+    // Agent-specific confidence modifiers
+    const agentModifiers: Record<string, number> = {
+      [LLM_AGENT_TYPES.REASONING]: 0.05,   // Reasoning agent is more confident in logic
+      [LLM_AGENT_TYPES.CREATIVE]: -0.1,    // Creative agent is less certain
+      [LLM_AGENT_TYPES.FACTUAL]: 0.1,      // Factual agent is more confident
+      [LLM_AGENT_TYPES.CODE]: 0.05,        // Code agent is confident in implementation
+      [LLM_AGENT_TYPES.SOCIAL]: -0.05,     // Social agent deals with subjective issues
+      [LLM_AGENT_TYPES.CRITIC]: -0.05,     // Critical agent identifies uncertainties
+      [LLM_AGENT_TYPES.COORDINATOR]: 0.0   // Coordinator is balanced
+    };
+
+    // Content-based adjustments
+    let contentAdjustment = 0;
+    const lowerContent = content.toLowerCase();
+    
+    // Technical specificity increases confidence
+    const technicalPatterns = [
+      /\b\w+\(\)/g,                    // Function calls
+      /\b[A-Z]{2,}\b/g,                // Acronyms  
+      /\b\d+\.?\d*%?\b/g,              // Numbers/percentages
+      /\b[a-z]+[_-][a-z]+\b/gi,        // Technical terms
+    ];
+    
+    let technicalCount = 0;
+    technicalPatterns.forEach(pattern => {
+      const matches = content.match(pattern);
+      technicalCount += matches ? matches.length : 0;
+    });
+    contentAdjustment += Math.min(technicalCount * 0.02, 0.1);
+    
+    // Evidence words increase confidence
+    const evidenceWords = ['research', 'study', 'data', 'proven', 'documented', 'verified'];
+    const evidenceCount = evidenceWords.filter(word => lowerContent.includes(word)).length;
+    contentAdjustment += evidenceCount * 0.03;
+    
+    // Uncertainty words decrease confidence
+    const uncertaintyWords = ['might', 'could', 'possibly', 'perhaps', 'maybe', 'uncertain'];
+    const uncertaintyCount = uncertaintyWords.filter(word => lowerContent.includes(word)).length;
+    contentAdjustment -= uncertaintyCount * 0.05;
+    
+    // Content length assessment
+    if (content.length >= 100 && content.length <= 200) {
+      contentAdjustment += 0.05; // Good detail level
+    } else if (content.length < 50) {
+      contentAdjustment -= 0.05; // Too brief
+    }
+    
+    // Calculate final confidence
+    const baseConfidence = typeBaseConfidence[reasoningType] || 0.65;
+    const agentModifier = agentModifiers[agentType] || 0;
+    
+    // Add some realistic randomness (±0.08)
+    const randomVariation = (Math.random() - 0.5) * 0.16;
+    
+    const finalConfidence = baseConfidence + agentModifier + contentAdjustment + randomVariation;
+    
+    // Ensure realistic range
+    return Math.max(0.35, Math.min(0.92, Math.round(finalConfidence * 1000) / 1000));
   }
 
   /**

@@ -183,24 +183,81 @@ export class ResponseParser {
   private assessLineConfidence(line: string): number {
     const lowerLine = line.toLowerCase();
     
+    // Start with base confidence based on content characteristics
+    let baseConfidence = 0.5;
+    
     // High confidence indicators
-    const highConfidenceWords = ['clearly', 'obviously', 'definitely', 'proven', 'established', 'certain'];
-    const highConfidenceScore = highConfidenceWords.some(word => lowerLine.includes(word)) ? 0.9 : 0;
+    const highConfidenceWords = ['clearly', 'obviously', 'definitely', 'proven', 'established', 'certain', 'confirmed', 'verified', 'documented'];
+    const highConfidenceCount = highConfidenceWords.filter(word => lowerLine.includes(word)).length;
     
     // Low confidence indicators  
-    const lowConfidenceWords = ['might', 'possibly', 'unclear', 'uncertain', 'perhaps', 'maybe'];
-    const lowConfidenceScore = lowConfidenceWords.some(word => lowerLine.includes(word)) ? 0.4 : 0;
+    const lowConfidenceWords = ['might', 'possibly', 'unclear', 'uncertain', 'perhaps', 'maybe', 'could', 'potentially', 'seems'];
+    const lowConfidenceCount = lowConfidenceWords.filter(word => lowerLine.includes(word)).length;
     
     // Medium confidence indicators
-    const mediumConfidenceWords = ['likely', 'probably', 'suggests', 'indicates', 'appears'];
-    const mediumConfidenceScore = mediumConfidenceWords.some(word => lowerLine.includes(word)) ? 0.6 : 0;
+    const mediumConfidenceWords = ['likely', 'probably', 'suggests', 'indicates', 'appears', 'tends', 'generally', 'typically'];
+    const mediumConfidenceCount = mediumConfidenceWords.filter(word => lowerLine.includes(word)).length;
     
-    // Return highest applicable confidence, or default
-    if (highConfidenceScore > 0) return highConfidenceScore;
-    if (lowConfidenceScore > 0) return lowConfidenceScore;
-    if (mediumConfidenceScore > 0) return mediumConfidenceScore;
+    // Evidence/factual indicators (boost confidence)
+    const evidenceWords = ['data', 'research', 'study', 'statistics', 'evidence', 'measurement', 'analysis', 'tested'];
+    const evidenceCount = evidenceWords.filter(word => lowerLine.includes(word)).length;
     
-    return 0.7; // Default confidence
+    // Technical specificity indicators (boost confidence)
+    const technicalIndicators = [
+      /\b\w+\(\)/g,                    // Function calls: function()
+      /\b[A-Z]{2,}\b/g,                // Acronyms: API, HTTP, JSON
+      /\b\d+\.?\d*%?\b/g,              // Numbers/percentages: 95%, 1.5ms
+      /\b[a-z]+[_-][a-z]+\b/gi,        // Technical terms: real-time, snake_case
+      /\b[A-Z][a-z]+[A-Z][a-z]+\b/g,   // CamelCase: WebSocket, TypeScript
+    ];
+    
+    let technicalCount = 0;
+    technicalIndicators.forEach(pattern => {
+      const matches = line.match(pattern);
+      technicalCount += matches ? matches.length : 0;
+    });
+    
+    // Content length and structure assessment
+    const lineLength = line.trim().length;
+    const hasStructure = line.includes(':') || line.includes('-') || line.includes('•');
+    const hasNumbers = /\d/.test(line);
+    
+    // Calculate confidence adjustments
+    let confidenceAdjustment = 0;
+    
+    // Explicit confidence words (strongest indicators)
+    if (highConfidenceCount > 0) {
+      confidenceAdjustment += 0.3;
+    } else if (lowConfidenceCount > 0) {
+      confidenceAdjustment -= 0.2;
+    } else if (mediumConfidenceCount > 0) {
+      confidenceAdjustment += 0.1;
+    }
+    
+    // Evidence and technical specificity
+    confidenceAdjustment += evidenceCount * 0.1;
+    confidenceAdjustment += Math.min(technicalCount * 0.05, 0.15);
+    
+    // Content characteristics
+    if (lineLength >= 100 && lineLength <= 200) {
+      confidenceAdjustment += 0.1; // Good detail level
+    } else if (lineLength < 30) {
+      confidenceAdjustment -= 0.1; // Too brief
+    } else if (lineLength > 300) {
+      confidenceAdjustment -= 0.05; // Too verbose
+    }
+    
+    if (hasStructure) confidenceAdjustment += 0.05;
+    if (hasNumbers) confidenceAdjustment += 0.05;
+    
+    // Calculate final confidence
+    const finalConfidence = baseConfidence + confidenceAdjustment;
+    
+    // Ensure realistic range with some variation
+    const variance = (Math.random() - 0.5) * 0.1; // ±0.05 variation
+    const result = Math.max(0.3, Math.min(0.95, finalConfidence + variance));
+    
+    return Math.round(result * 1000) / 1000; // Round to 3 decimal places
   }
 
   private calculateResponseConfidence(text: string, reasoning: ReasoningStep[]): number {
