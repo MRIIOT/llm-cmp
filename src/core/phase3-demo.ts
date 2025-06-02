@@ -122,7 +122,7 @@ export class Phase3Demo {
     console.log(`\n💭 Specialized Prompt Generated (${prompt.length} chars)`);
 
     // Simulate specialized reasoning generation
-    const reasoning = this.generateSpecializedReasoning(agent, query, context);
+    const reasoning = await this.generateSpecializedReasoning(agent, query, context);
     console.log(`\n🔍 Generated Reasoning Steps: ${reasoning.length}`);
     
     reasoning.forEach((step, index) => {
@@ -131,7 +131,7 @@ export class Phase3Demo {
     });
 
     // Extract semantic morphology
-    const morphology = SpecializedAgentProcessor.extractSemanticMorphology(reasoning, agent.type);
+    const morphology = SpecializedAgentProcessor.extractDetailedSemanticMorphology(reasoning, agent.type);
     console.log(`\n🧬 Semantic Morphology Extracted:`);
     this.logMorphologyStructure(morphology, agent.type);
 
@@ -162,12 +162,107 @@ export class Phase3Demo {
   }
 
   /**
-   * Generate specialized reasoning based on agent type
+   * Generate specialized reasoning using real LLM APIs when available
    */
-  private generateSpecializedReasoning(agent: LLMAgent, query: string, context: any): ReasoningStep[] {
+  private async generateSpecializedReasoning(agent: LLMAgent, query: string, context: any): Promise<ReasoningStep[]> {
     const preferredTypes = agent.getPreferredReasoningTypes();
     const specialization = getAgentSpecialization(agent.type);
     
+    // Check if we have real API keys configured
+    const hasRealAPIs = this.hasRealAPIKeys();
+    
+    if (hasRealAPIs) {
+      console.log(`   🔗 Using REAL LLM API for ${agent.type}`);
+      return this.generateRealLLMReasoning(agent, query, context);
+    } else {
+      console.log(`   🎭 Using simulated responses for ${agent.type}`);
+      return this.generateSimulatedReasoning(agent, query, context, preferredTypes);
+    }
+  }
+
+  /**
+   * Check if real API keys are configured
+   */
+  private hasRealAPIKeys(): boolean {
+    try {
+      const ConfigLoader = require('../config/config-loader.js').ConfigLoader;
+      const configLoader = ConfigLoader.getInstance();
+      const config = configLoader.getConfig();
+      
+      const hasOpenAI = config.apiKeys?.openai && 
+                       !config.apiKeys.openai.includes('your-') && 
+                       config.apiKeys.openai.startsWith('sk-');
+      
+      const hasAnthropic = config.apiKeys?.anthropic && 
+                          !config.apiKeys.anthropic.includes('your-') && 
+                          config.apiKeys.anthropic.startsWith('sk-ant-');
+      
+      return hasOpenAI || hasAnthropic;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Generate reasoning using real LLM APIs
+   */
+  private async generateRealLLMReasoning(agent: LLMAgent, query: string, context: any): Promise<ReasoningStep[]> {
+    try {
+      // Import model interfaces - use dynamic import to handle module loading
+      const modelsModule = await import('../models/index.js');
+      
+      // Create LLM interface for this agent
+      const llmInterface = modelsModule.createModelInterface(agent);
+      
+      // Test connection first
+      console.log(`   🔍 Testing API connection for ${agent.type}...`);
+      const connectionOk = await llmInterface.testConnection();
+      
+      if (!connectionOk) {
+        throw new Error('API connection test failed');
+      }
+      
+      console.log(`   ✅ API connection successful`);
+      
+      // Create CMP message for processing
+      const cmpMessage = {
+        type: 'ANALYSIS_REQUEST',
+        reasoning: [{
+          type: 'query',
+          concept: agent.type,
+          content: query,
+          confidence: 0.8
+        }],
+        semantic_pose: {
+          concept: [1, 2, 3],
+          confidence: 0.8,
+          context: agent.nativeDomain
+        },
+        confidence: 0.8
+      };
+      
+      // Process with real LLM
+      console.log(`   🚀 Calling ${agent.type} LLM API...`);
+      const response = await llmInterface.processCMPMessage(cmpMessage, {
+        query,
+        ...context
+      });
+      
+      console.log(`   📝 Received ${response.reasoning.length} reasoning steps from LLM`);
+      
+      return response.reasoning;
+      
+    } catch (error: any) {
+      console.warn(`   ⚠️ Real API call failed for ${agent.type}: ${error.message}`);
+      console.warn(`   🎭 Falling back to simulation...`);
+      return this.generateSimulatedReasoning(agent, query, context, agent.getPreferredReasoningTypes());
+    }
+  }
+
+  /**
+   * Generate simulated reasoning (fallback)
+   */
+  private generateSimulatedReasoning(agent: LLMAgent, query: string, context: any, preferredTypes: string[]): ReasoningStep[] {
     // Generate reasoning steps specific to agent specialization
     const reasoning: ReasoningStep[] = [];
 
@@ -203,7 +298,7 @@ export class Phase3Demo {
     context: any, 
     index: number
   ): ReasoningStep {
-    const stepTemplates = {
+    const stepTemplates: Record<string, () => string> = {
       // Reasoning Agent
       'premise': () => `Logical premise ${index + 1}: The collaborative code editor requires real-time synchronization mechanisms to handle concurrent edits from multiple users without conflicts.`,
       'inference': () => `Logical inference ${index + 1}: If we implement operational transformation or conflict-free replicated data types (CRDTs), then we can maintain consistency across distributed clients.`,
@@ -262,7 +357,7 @@ export class Phase3Demo {
    * Generate agent-specific summary
    */
   private generateAgentSummary(agentType: string, query: string): string {
-    const summaries = {
+    const summaries: Record<string, string> = {
       [LLM_AGENT_TYPES.REASONING]: 'Systematic logical analysis focusing on consistency guarantees and theoretical foundations.',
       [LLM_AGENT_TYPES.CREATIVE]: 'Innovative approaches that reimagine collaboration paradigms and user engagement models.',
       [LLM_AGENT_TYPES.FACTUAL]: 'Evidence-based recommendations grounded in research data and industry best practices.',
@@ -337,11 +432,11 @@ export class Phase3Demo {
         const originalPose = result.semanticPose;
         
         console.log(`   Source Agent: ${agentType}`);
-        console.log(`   Original Pose: [${originalPose.concept.slice(0, 3).map(n => n.toFixed(2)).join(', ')}...] confidence: ${originalPose.confidence.toFixed(3)}`);
+        console.log(`   Original Pose: [${originalPose.concept.slice(0, 3).map((n: number) => n.toFixed(2)).join(', ')}...] confidence: ${originalPose.confidence.toFixed(3)}`);
         
         // Perform transformation
         const transformedPose = KnowledgeDomainTransformer.transform(originalPose, from, to);
-        console.log(`   Transformed: [${transformedPose.concept.slice(0, 3).map(n => n.toFixed(2)).join(', ')}...] confidence: ${transformedPose.confidence.toFixed(3)}`);
+        console.log(`   Transformed: [${transformedPose.concept.slice(0, 3).map((n: number) => n.toFixed(2)).join(', ')}...] confidence: ${transformedPose.confidence.toFixed(3)}`);
         
         // Check compatibility
         const compatibility = KnowledgeDomainTransformer.checkDomainCompatibility(from, to);

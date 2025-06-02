@@ -12,7 +12,8 @@ import {
   KnowledgeFrame,
   KNOWLEDGE_FRAMES
 } from './agent-types';
-import { CMPMessage, ReasoningStep, SemanticPose } from '../types';
+import { CMPMessage, ReasoningStep } from '../types';
+import { SemanticPose } from '../core/semantic-pose.js';
 
 export interface SemanticMorphology {
   logical_structure?: LogicalStructure;
@@ -85,8 +86,55 @@ export class SpecializedAgentProcessor {
   
   /**
    * Extract semantic morphology based on agent specialization
+   * Returns simplified structure compatible with existing types
    */
   static extractSemanticMorphology(
+    reasoning: ReasoningStep[], 
+    agentType: AgentType
+  ): { logical_structure: { premises: ReasoningStep[]; inferences: ReasoningStep[]; conclusions: ReasoningStep[]; }; concept_relations: string[]; evidence_chain: string[]; } {
+    // Extract basic logical structure that all agent types can use
+    const premises = reasoning.filter(r => 
+      r.type === REASONING_TYPES.PREMISE || 
+      r.content.toLowerCase().includes('premise') ||
+      r.content.toLowerCase().includes('assumption') ||
+      r.content.toLowerCase().includes('given')
+    );
+
+    const inferences = reasoning.filter(r => 
+      r.type === REASONING_TYPES.INFERENCE ||
+      r.content.toLowerCase().includes('therefore') ||
+      r.content.toLowerCase().includes('thus') ||
+      r.content.toLowerCase().includes('follows')
+    );
+
+    const conclusions = reasoning.filter(r => 
+      r.type === REASONING_TYPES.CONCLUSION ||
+      r.content.toLowerCase().includes('conclusion') ||
+      r.content.toLowerCase().includes('result')
+    );
+
+    // Extract concept relations as string array
+    const concept_relations = reasoning.map(r => r.concept);
+
+    // Extract evidence chain as string array  
+    const evidence_chain = reasoning.map(r => r.type);
+
+    return {
+      logical_structure: {
+        premises,
+        inferences,
+        conclusions
+      },
+      concept_relations,
+      evidence_chain
+    };
+  }
+
+  /**
+   * Extract detailed semantic morphology for demonstration purposes
+   * This provides the full specialized analysis per agent type
+   */
+  static extractDetailedSemanticMorphology(
     reasoning: ReasoningStep[], 
     agentType: AgentType
   ): SemanticMorphology {

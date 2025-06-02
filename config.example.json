@@ -1,48 +1,48 @@
 {
   "apiKeys": {
-    "openai": "sk-your-openai-key-here",
-    "anthropic": "sk-ant-your-anthropic-key-here"
+    "openai": "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",
+    "anthropic": "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"
   },
   "models": {
     "reasoning": {
       "provider": "anthropic",
-      "model": "claude-3-opus-20240229",
+      "model": "claude-3-5-sonnet-20241022",
       "temperature": 0.1,
       "maxTokens": 3000
     },
     "creative": {
       "provider": "openai", 
-      "model": "gpt-4-turbo-preview",
+      "model": "gpt-4o",
       "temperature": 0.8,
       "maxTokens": 2500
     },
     "factual": {
       "provider": "anthropic",
-      "model": "claude-3-sonnet-20240229", 
+      "model": "claude-3-5-sonnet-20241022", 
       "temperature": 0.2,
       "maxTokens": 2000
     },
     "code": {
       "provider": "anthropic",
-      "model": "claude-3-haiku-20240307",
+      "model": "claude-3-5-sonnet-20241022",
       "temperature": 0.1,
       "maxTokens": 4000
     },
     "social": {
       "provider": "openai",
-      "model": "gpt-4",
+      "model": "gpt-4o",
       "temperature": 0.6,
       "maxTokens": 2000
     },
     "critic": {
       "provider": "anthropic", 
-      "model": "claude-3-opus-20240229",
+      "model": "claude-3-5-sonnet-20241022",
       "temperature": 0.3,
       "maxTokens": 2500
     },
     "coordinator": {
       "provider": "openai",
-      "model": "gpt-4-turbo-preview",
+      "model": "gpt-4o",
       "temperature": 0.5,
       "maxTokens": 3000
     }

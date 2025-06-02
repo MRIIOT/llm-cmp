@@ -55,7 +55,7 @@ export class LLMInterface {
       };
       
       const prompt = this.promptTemplates.buildPrompt(
-        this.agent.specialization,
+        this.agent.type,  // Use agent type instead of specialization
         type.toLowerCase(),
         promptContext
       );

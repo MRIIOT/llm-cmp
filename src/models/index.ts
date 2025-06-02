@@ -42,3 +42,46 @@ export function createLLMInterface(agent: any, modelType: string, apiKey: string
   const adapter = createModelAdapter(modelType, apiKey);
   return new LLMInterface(agent, adapter);
 }
+
+// Factory function for creating model interface using configuration
+export function createModelInterface(agent: any): LLMInterface {
+  try {
+    const { ConfigLoader } = require('../config/config-loader.js');
+    const configLoader = ConfigLoader.getInstance();
+    const config = configLoader.getConfig();
+    
+    // Get agent type mapping
+    const agentTypeMap: Record<string, string> = {
+      'reasoning_specialist': 'reasoning',
+      'creative_specialist': 'creative', 
+      'factual_specialist': 'factual',
+      'code_specialist': 'code',
+      'social_specialist': 'social',
+      'critical_specialist': 'critic',
+      'meta_coordinator': 'coordinator'
+    };
+    
+    const configKey = agentTypeMap[agent.type] || 'reasoning';
+    const modelConfig = config.models[configKey];
+    
+    if (!modelConfig) {
+      throw new Error(`No model configuration found for agent type: ${agent.type}`);
+    }
+    
+    // Get API key based on provider
+    const apiKey = modelConfig.provider === 'openai' 
+      ? config.apiKeys.openai 
+      : config.apiKeys.anthropic;
+    
+    if (!apiKey || apiKey.includes('your-')) {
+      throw new Error(`Invalid API key for provider: ${modelConfig.provider}`);
+    }
+    
+    const adapter = createModelAdapter(modelConfig.model, apiKey);
+    return new LLMInterface(agent, adapter);
+    
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to create model interface: ${errorMessage}`);
+  }
+}

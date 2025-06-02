@@ -333,8 +333,11 @@ Rate the meta-reasoning and coordination effectiveness.`
     messageType: string = 'base',
     context: PromptContext = {}
   ): string {
+    console.log(`   🔍 Looking for template: agentType="${agentType}", messageType="${messageType}"`);
+    
     const template = this.templates.get(agentType);
     if (!template) {
+      console.log(`   ❌ Available agent types: ${Array.from(this.templates.keys()).join(', ')}`);
       throw new Error(`No template found for agent type: ${agentType}`);
     }
 

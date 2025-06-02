@@ -3,7 +3,7 @@
  * Semantic pose transformation between knowledge frames and domain-specific operations
  */
 
-import { SemanticPose } from '../types';
+import { SemanticPose } from '../core/semantic-pose.js';
 import { 
   KNOWLEDGE_FRAMES, 
   KnowledgeFrame, 
@@ -47,7 +47,9 @@ export class KnowledgeDomainTransformer {
     toFrame: KnowledgeFrame
   ): SemanticPose {
     if (fromFrame === toFrame) {
-      return { ...pose }; // No transformation needed
+      const newPose = new SemanticPose(pose.concept, pose.confidence, pose.context);
+      newPose.reasoning_path = [...(pose.reasoning_path || [])];
+      return newPose;
     }
 
     const transformKey = `${fromFrame}_to_${toFrame}`;
@@ -64,12 +66,10 @@ export class KnowledgeDomainTransformer {
     // Adjust confidence based on transformation reliability
     const adjustedConfidence = pose.confidence * transform.reliability;
 
-    return {
-      concept: transformedConcept,
-      confidence: adjustedConfidence,
-      context: toFrame,
-      reasoning_path: [...(pose.reasoning_path || []), `transform_${fromFrame}_to_${toFrame}`]
-    };
+    const newPose = new SemanticPose(transformedConcept, adjustedConfidence, toFrame);
+    newPose.reasoning_path = [...(pose.reasoning_path || []), `transform_${fromFrame}_to_${toFrame}`];
+    
+    return newPose;
   }
 
   /**
@@ -143,7 +143,10 @@ export class KnowledgeDomainTransformer {
     }
 
     if (poses.length === 1) {
-      return { ...poses[0].pose };
+      const { pose } = poses[0];
+      const newPose = new SemanticPose(pose.concept, pose.confidence, pose.context);
+      newPose.reasoning_path = [...(pose.reasoning_path || [])];
+      return newPose;
     }
 
     // Transform all poses to META domain for combination
@@ -170,12 +173,14 @@ export class KnowledgeDomainTransformer {
       ({ pose }) => pose.reasoning_path || []
     );
 
-    return {
-      concept: combinedConcept,
-      confidence: combinedConfidence,
-      context: KNOWLEDGE_FRAMES.META,
-      reasoning_path: [...new Set(combinedReasoningPath)] // Remove duplicates
-    };
+    const result = new SemanticPose(
+      combinedConcept,
+      combinedConfidence,
+      KNOWLEDGE_FRAMES.META
+    );
+    result.reasoning_path = [...new Set(combinedReasoningPath)]; // Remove duplicates
+    
+    return result;
   }
 
   /**
@@ -415,7 +420,7 @@ export class KnowledgeDomainTransformer {
 
     poses.forEach(({ pose, weight }) => {
       const normalizedWeight = weight / totalWeight;
-      pose.concept.forEach((value, index) => {
+      pose.concept.forEach((value: number, index: number) => {
         if (index < result.length) {
           result[index] += value * normalizedWeight;
         }

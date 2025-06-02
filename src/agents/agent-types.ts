@@ -191,7 +191,7 @@ export function getReasoningTypesForAgent(agentType: AgentType): string[] {
  */
 export function areDomainsCompatible(domain1: KnowledgeFrame, domain2: KnowledgeFrame): boolean {
   // Define compatibility matrix
-  const compatibility = {
+  const compatibility: Record<KnowledgeFrame, KnowledgeFrame[]> = {
     [KNOWLEDGE_FRAMES.TECHNICAL]: [KNOWLEDGE_FRAMES.TECHNICAL, KNOWLEDGE_FRAMES.META],
     [KNOWLEDGE_FRAMES.CREATIVE]: [KNOWLEDGE_FRAMES.CREATIVE, KNOWLEDGE_FRAMES.SOCIAL],
     [KNOWLEDGE_FRAMES.FACTUAL]: [KNOWLEDGE_FRAMES.FACTUAL, KNOWLEDGE_FRAMES.TECHNICAL, KNOWLEDGE_FRAMES.META],
