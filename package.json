@@ -1,0 +1,19 @@
+{
+  "name": "llm-cmp",
+  "version": "1.0.0",
+  "description": "LLM Orchestration via Cortical Messaging Protocol",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc && node dist/index.js",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.5.3"
+  },
+  "private": true
+}
