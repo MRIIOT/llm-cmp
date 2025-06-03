@@ -1,8 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Debug MCP Integration (Direct)" type="NodeJSConfigurationType" path-to-js-file="$PROJECT_DIR$/dist/demo/mcp-integration-demo.js" working-dir="$PROJECT_DIR$">
-    <node-interpreter value="project" />
-    <node-options value="--inspect-brk=9229" />
-    <envs />
+  <configuration default="false" name="Debug MCP Integration (Direct)" type="NodeJSConfigurationType" path-to-js-file="src/demo/mcp-integration-demo.ts" working-dir="$PROJECT_DIR$">
     <method v="2">
       <option name="BuildArtifacts" enabled="true" />
     </method>

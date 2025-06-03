@@ -108,7 +108,7 @@ export async function runMCPIntegrationDemo(): Promise<void> {
             device_name: device.name,
             ...observations
           });
-          
+
         } catch (error) {
           console.log(`   ⚠️ Could not retrieve data for device ${device.name || device.id}: ${error}`);
         }
@@ -249,7 +249,7 @@ async function demonstrateDeviceSpecificAnalysis(
   
   try {
     // Get detailed device information
-    const deviceDetailsData = await mcpClient.getDeviceDetails(deviceState.device_id);
+    const deviceDetailsData = await mcpClient.getDeviceDetails(deviceState.device_name);
     const deviceDetails = deviceDetailsData.device || deviceDetailsData;
     
     // Create targeted analysis request

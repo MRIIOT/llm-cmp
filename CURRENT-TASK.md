@@ -91,13 +91,12 @@ Integrate user's custom MTConnect MCP server for manufacturing device monitoring
 ✅ **FIXED** - All TypeScript compilation errors resolved
 ✅ **ADDED** - Missing npm script `demo:mcp-integration` added
 ✅ **FIXED** - Configuration loading added to demo
-⚠️ **FIXED** - MCP response parsing corrected for device data extraction
+⚠️ **FIXED** - Large JSON response buffering implemented to handle 64KB+ responses
+⚠️ **FIXED** - MTConnect server communication properly handles multi-chunk responses
 ✅ **ADDED** - Debug run configurations for IDE debugging (JetBrains + VS Code)
 
 ## Current Issue
-**RESOLVED** - MCP response parsing fixed. Server is responding correctly with 2 manufacturing devices:
-- OKUMA (uuid: OKUMA.123456, status: online, data quality: critical - 71.6% availability)
-- Mazak (uuid: Mazak, id: d1, status: online, data quality: critical - 74.8% availability)
+**RESOLVED** - Large JSON response buffering implemented. MTConnect server sends responses larger than 64KB that were being truncated when split across Node.js stream chunks.
 
 ## Next Action Required
 **Ready for testing and debugging**:

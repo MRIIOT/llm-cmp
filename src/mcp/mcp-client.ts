@@ -45,6 +45,7 @@ export class MCPClient {
     resolve: (value: any) => void;
     reject: (error: any) => void;
   }>();
+  private responseBuffer = ''; // Buffer for accumulating partial JSON responses
 
   constructor(private connection: MCPConnection) {}
 
@@ -63,24 +64,17 @@ export class MCPClient {
         throw new Error('Failed to establish stdio connection');
       }
 
-      // Handle responses
+      // Handle responses with proper buffering for large JSON responses
       this.process.stdout.on('data', (data) => {
-        const lines = data.toString().split('\n').filter((line: string) => line.trim());
-        for (const line of lines) {
-          try {
-            //console.log(`📥 Received: ${line}`);
-            console.log(`📥 Received data.`);
-            const response = JSON.parse(line);
-            this.handleResponse(response);
-          } catch (error) {
-            //console.log(`📡 MCP Server output: ${line}`);
-            console.log(`📡 MCP Server error: ${error}`);
-          }
-        }
+        // Accumulate data in buffer
+        this.responseBuffer += data.toString();
+        
+        // Process complete lines/JSON objects
+        this.processBufferedResponses();
       });
 
       this.process.stderr?.on('data', (data) => {
-        console.log(`🔍 MCP Server debug: ${data.toString()}`);
+        console.log(`🔍 MCP Server debug: ${data.toString().substring(0, 100)}`);
       });
 
       this.process.on('error', (error) => {
@@ -244,6 +238,35 @@ export class MCPClient {
     }
   }
 
+  // Process buffered responses to handle large JSON objects split across chunks
+  private processBufferedResponses(): void {
+    while (this.responseBuffer.includes('\n')) {
+      const newlineIndex = this.responseBuffer.indexOf('\n');
+      const line = this.responseBuffer.substring(0, newlineIndex).trim();
+      this.responseBuffer = this.responseBuffer.substring(newlineIndex + 1);
+      
+      if (line.length > 0) {
+        try {
+          console.log(`📥 Processing buffered response (${line.length} chars)`);
+          
+          // Parse the complete JSON line
+          const mcpResponse = JSON.parse(line);
+          this.handleResponse(mcpResponse);
+        } catch (error) {
+          console.log(`📡 MCP Server parse error: ${error}`);
+          console.log(`📡 Response length: ${line.length} chars`);
+          console.log(`📡 Response start: ${line.substring(0, 100)}`);
+          console.log(`📡 Response end: ${line.substring(Math.max(0, line.length - 100))}`);
+          
+          // Try to extract any non-JSON output
+          if (!line.includes('"jsonrpc"')) {
+            console.log(`📡 MCP Server output: ${line}`);
+          }
+        }
+      }
+    }
+  }
+
   private getNextId(): string {
     return (++this.messageId).toString();
   }
@@ -253,6 +276,7 @@ export class MCPClient {
       console.log('🔌 Disconnecting from MCP server...');
       this.process.kill();
       this.process = null;
+      this.responseBuffer = ''; // Clear response buffer
       console.log('✅ MCP server disconnected');
     }
   }
@@ -319,8 +343,9 @@ export class MTConnectMCPClient extends MCPClient {
       if (result && result.content && Array.isArray(result.content) && result.content[0]) {
         const textContent = result.content[0].text;
         if (typeof textContent === 'string') {
+          // The text content is already a valid JSON string, just parse it directly
           const parsedData = JSON.parse(textContent);
-          //console.log(`📊 Parsed MTConnect data: ${parsedData.message || 'Success'}`);
+          console.log(`📊 Parsed MTConnect data: ${parsedData.message || 'Success'}`);
           return parsedData;
         }
       }
@@ -330,6 +355,7 @@ export class MTConnectMCPClient extends MCPClient {
       return result;
     } catch (error) {
       console.error('❌ Failed to parse MTConnect response:', error);
+      console.error('❌ Text content was:', result?.content?.[0]?.text?.substring(0, 200));
       return { devices: [], error: 'Failed to parse response' };
     }
   }
