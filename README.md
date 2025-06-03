@@ -10,8 +10,10 @@ This system implements **Cortical Messaging Protocol (CMP)** adapted for LLM coo
 - **Evidence Aggregation**: Bayesian confidence combination across agents
 - **Formal Verification**: Mathematical guarantees (Safety, Liveness, Consistency, Completeness)
 - **Specialized Agents**: 7 expert LLMs working in parallel
+- **External Data Integration**: Live manufacturing data via MTConnect MCP integration
+- **Orchestration Engine**: Multi-agent coordination with consensus building
 
-## 🎯 Current Status: Phase 3 Complete ✅
+## 🎯 Current Status: Phase 4 Complete ✅
 
 **Core CMP Infrastructure (Phase 1):**
 - ✅ Semantic pose operations in concept space
@@ -34,6 +36,13 @@ This system implements **Cortical Messaging Protocol (CMP)** adapted for LLM coo
 - ✅ Cross-domain compatibility checking and confidence adjustments
 - ✅ Specialized analysis approaches per agent expertise
 
+**Orchestration Engine (Phase 4):**
+- ✅ Multi-agent coordination with parallel execution
+- ✅ Consensus building algorithms with formal verification
+- ✅ Real-time evidence aggregation and conflict resolution
+- ✅ MCP integration for external data sources (MTConnect manufacturing data)
+- ✅ Enhanced orchestration requests with external context support
+
 ## 🚀 Quick Start
 
 ### 1. Install Dependencies
@@ -41,18 +50,54 @@ This system implements **Cortical Messaging Protocol (CMP)** adapted for LLM coo
 npm install
 ```
 
-### 2. Configure API Keys (Required for Phase 2+ demos)
+### 2. Configure API Keys
+Choose the appropriate configuration for your setup:
+
+**For OpenAI + Anthropic (recommended):**
 ```bash
-cp config.example.json config.json
+cp config.anthropic_openai.example.json config.json
 # Edit config.json with your OpenAI and Anthropic API keys
 ```
 
-### 3. Run Current Demo (Phase 3)
+**For OpenAI + Anthropic + Google Gemini:**
+```bash
+cp config.anthropic_openai_google.example.json config.json
+# Edit config.json with your OpenAI, Anthropic, and Google API keys
+```
+
+**For LM Studio (local models):**
+```bash
+cp config.lmstudio.example.json config.json
+# Ensure LM Studio is running locally
+```
+
+**For Testing (no API keys required):**
+```bash
+cp config.mock.example.json config.json
+# Uses mock responses for development
+```
+
+### 3. Run Demonstrations
+
+**Core Phase 4 Orchestration Demo:**
 ```bash
 npm run dev
 ```
 
-**Note**: Phase 1 demo runs without API keys, but Phase 2+ require real API access for LLM integration.
+**MCP Integration Demo (Manufacturing Data Analysis):**
+```bash
+npm run demo:mcp-integration
+```
+
+**Debug MCP Integration:**
+```bash
+npm run debug:mcp-integration
+# Or use the included debug scripts:
+# ./debug-mcp.sh (Linux/Mac)
+# debug-mcp.bat (Windows)
+```
+
+**Note**: Phase 1 demo runs without API keys, but Phase 2+ require real API access for LLM integration. MCP integration requires MTConnect MCP server setup.
 
 ## 📁 Project Structure
 
@@ -64,9 +109,13 @@ llm-cmp/
 │   │   ├── semantic-pose.ts        # Semantic space operations
 │   │   ├── llm-agent.ts            # Agent base class with specialization
 │   │   ├── knowledge-domains.ts    # Cross-domain transformations
-│   │   ├── cmp-demo.ts             # Phase 1 demonstration
-│   │   ├── phase2-demo.ts          # Phase 2 demonstration  
-│   │   └── phase3-demo.ts          # Phase 3 demonstration
+│   │   └── ...                     # Core CMP functionality
+│   ├── orchestration/              # NEW: Orchestration Engine
+│   │   ├── llm-orchestrator.ts     # Multi-agent coordination engine
+│   │   ├── enhanced-request.ts     # Enhanced orchestration requests
+│   │   └── index.ts                # Orchestration exports
+│   ├── mcp/                        # NEW: Model Context Protocol Integration
+│   │   └── mcp-client.ts           # MTConnect MCP client
 │   ├── models/
 │   │   ├── model-adapter.ts        # Abstract base for API adapters
 │   │   ├── openai-adapter.ts       # OpenAI API implementation
@@ -78,11 +127,27 @@ llm-cmp/
 │   ├── agents/
 │   │   ├── agent-types.ts          # 7 specialized agent definitions
 │   │   └── specialized-agents.ts   # Agent morphology extraction
+│   ├── demo/
+│   │   ├── phase1-demo.ts          # Phase 1 demonstration
+│   │   ├── phase2-demo.ts          # Phase 2 demonstration  
+│   │   ├── phase3-demo.ts          # Phase 3 demonstration
+│   │   ├── phase4-demo.ts          # NEW: Phase 4 orchestration demo
+│   │   ├── mcp-integration-demo.ts # NEW: MCP manufacturing integration
+│   │   ├── gemini-adapter-demo.ts  # NEW: Google Gemini adapter demo
+│   │   ├── lmstudio-adapter-demo.ts # NEW: LM Studio adapter demo
+│   │   ├── mock-adapter-demo.ts    # NEW: Mock adapter demo
+│   │   └── cmp-demo.ts             # Original CMP demonstration
 │   ├── config/
 │   │   └── config-loader.ts        # Configuration management
 │   └── index.ts                    # Main entry point
-├── config.example.json             # Configuration template
-└── CURRENT-TASK.md                 # Development task tracking
+├── config.anthropic_openai.example.json      # OpenAI + Anthropic config
+├── config.anthropic_openai_google.example.json # + Google Gemini config
+├── config.lmstudio.example.json              # LM Studio config
+├── config.mock.example.json                  # Mock testing config
+├── config.openai.example.json                # OpenAI only config
+├── debug-mcp.sh                              # MCP debug script (Unix)
+├── debug-mcp.bat                             # MCP debug script (Windows)
+└── CURRENT-TASK.md                           # Development task tracking
 ```
 
 ## 🧪 What the System Demonstrates
@@ -125,6 +190,42 @@ llm-cmp/
    Domain Transformations: 14 cross-domain matrices (0.800 avg reliability)
 ```
 
+**Phase 4 - Orchestration Engine:**
+```
+🎼 Multi-Agent Coordination:
+   🤝 Consensus Building: Thresholds 0.5-0.9, adaptive convergence
+   🔍 Evidence Aggregation: Cross-agent evidence synthesis
+   🔬 Formal Verification: Safety, Liveness, Consistency, Completeness
+   📋 Coordinated Answers: Integrated multi-perspective solutions
+
+📊 Orchestration Metrics:
+   Participating agents: 5/7
+   Processing time: 2,847ms
+   Consensus confidence: 0.742 (High)
+   Reasoning diversity: 0.834
+   Verification: 4/4 checks passed ✅
+```
+
+**MCP Manufacturing Integration:**
+```
+🏭 MTConnect Data Analysis:
+   📊 Analyzing data from 2 devices...
+   📈 Processing 12 observations...
+   🎯 Data quality: 95.0% reliable
+
+🔗 Multi-Agent Manufacturing Analysis:
+   📊 Factual Specialist: Device performance metrics analysis
+   🧠 Reasoning Specialist: Systematic equipment evaluation  
+   ⚠️ Critical Specialist: Risk assessment and maintenance alerts
+   🎯 Meta Coordinator: Manufacturing optimization recommendations
+
+📈 Analysis Quality:
+   • Overall Confidence: 0.918 (High)
+   • Expert Consensus: ✅ Achieved
+   • Data Integration: ✅ Successful
+   • Agent Alignment: 4/4 specialists agreed
+```
+
 **Agent Communication:**
 ```
 📤 Created message:
@@ -160,6 +261,7 @@ const result = await orchestrator.orchestrateLLMs(
 // - Formally verified consensus with confidence scores  
 // - Mathematical guarantees about reasoning quality
 // - Audit trail of all reasoning steps
+// - External data integration (manufacturing, IoT, etc.)
 ```
 
 ## ✅ Completed Phases
@@ -182,19 +284,26 @@ const result = await orchestrator.orchestrateLLMs(
 - ✅ Agent-specific reasoning patterns and morphology extraction
 - ✅ Cross-domain compatibility assessment with confidence adjustments
 
-## 🔮 Upcoming Phases
-
 **Phase 4: Orchestration Engine**
-- Parallel agent coordination with load balancing
-- Consensus building algorithms with formal verification
-- Real-time evidence aggregation and conflict resolution
-- Performance optimization and caching
+- ✅ Parallel agent coordination with load balancing
+- ✅ Consensus building algorithms with formal verification
+- ✅ Real-time evidence aggregation and conflict resolution
+- ✅ External data integration via MCP (MTConnect manufacturing data)
+- ✅ Enhanced orchestration requests with external context support
+
+## 🔮 Upcoming Phases
 
 **Phase 5: Real-World Applications**
 - Code review orchestration across multiple repositories
 - Research paper analysis with citation verification
 - Strategic decision making with risk assessment
 - Enterprise integration and scaling
+
+**Phase 6: Advanced Integration**
+- Multi-modal data sources (IoT sensors, databases, APIs)
+- Real-time streaming data analysis
+- Adaptive agent specialization based on domain
+- Cross-organizational collaboration protocols
 
 ## 🔬 Technical Innovation
 
@@ -204,11 +313,19 @@ const result = await orchestrator.orchestrateLLMs(
 - **Consistency**: Reasoning coherent across domains ✓
 - **Completeness**: Sufficient evidence → convergence ✓
 
-**This isn't just "better prompting" - it's mathematically verified collective intelligence.**
+**External Data Integration:**
+- **MCP Protocol**: Model Context Protocol for live data feeds
+- **Manufacturing Integration**: MTConnect device data analysis
+- **Quality Assurance**: Data reliability and freshness metrics
+- **Context Preservation**: External data maintains provenance through agent processing
+
+**This isn't just "better prompting" - it's mathematically verified collective intelligence with real-world data integration.**
 
 ## 📊 Expected Output
 
-When you run `npm run dev`, you should see:
+When you run the different demonstrations:
+
+### Core Orchestration Demo (`npm run dev`)
 
 **Phase 1 Foundation:**
 1. **Configuration loading** (requires config.json with API keys)
@@ -225,7 +342,23 @@ When you run `npm run dev`, you should see:
 8. **Agent-specific reasoning** (logical, creative, factual, technical, social, critical, coordination)
 9. **Quality score differentiation** (0.529-0.658 range showing realistic performance differences)
 10. **Knowledge domain transformations** (cross-domain semantic mapping)
-11. **Evidence aggregation** (multi-agent consensus with formal verification)
+
+**Phase 4 Orchestration Engine:**
+11. **Multi-agent coordination** (parallel execution and load balancing)
+12. **Evidence aggregation** (cross-agent evidence synthesis)
+13. **Consensus building** (adaptive thresholds and convergence)
+14. **Formal verification** (4-point verification checks)
+15. **Coordinated final answers** (integrated multi-perspective solutions)
+
+### MCP Integration Demo (`npm run demo:mcp-integration`)
+
+**Manufacturing Data Integration:**
+1. **MCP Server Connection** (MTConnect device discovery)
+2. **Live Device Data** (current states and observations)
+3. **Multi-Agent Manufacturing Analysis** (specialized perspectives on equipment)
+4. **Data Quality Assessment** (reliability, freshness, completeness metrics)
+5. **Device-Specific Insights** (targeted equipment recommendations)
+6. **Integrated Manufacturing Analysis** (coordinated optimization strategies)
 
 **Success Indicators:**
 - ✅ All 7 agents show distinct specialized behaviors
@@ -233,6 +366,9 @@ When you run `npm run dev`, you should see:
 - ✅ Confidence values show appropriate uncertainty (0.400-0.900)
 - ✅ Cross-domain transformations achieve 0.800+ reliability
 - ✅ Real LLM API calls succeed (requires valid API keys)
+- ✅ Consensus building achieves convergence with formal verification
+- ✅ External data integration maintains quality and provenance
+- ✅ Manufacturing analysis provides actionable insights
 
 ## 🤝 Contributing
 
@@ -244,4 +380,4 @@ This is experimental research code exploring the intersection of swarm robotics 
 
 ---
 
-**Ready to test Phase 1? Run `npm run dev` and let's see the magic! ✨**
+**Ready to test the orchestration engine? Run `npm run dev` for Phase 4 demos or `npm run demo:mcp-integration` for manufacturing data analysis! ✨**
