@@ -17,15 +17,23 @@ import { createModelInterface } from '../models/index.js';
 import { ConfigLoader } from '../config/config-loader.js';
 import { SemanticPose } from '../core/semantic-pose.js';
 
+export interface ExternalContext {
+  source: string;
+  data: any;
+  metadata?: any;
+}
+
 export interface OrchestrationRequest {
   query: string;
   agents: LLMAgentType[];
-  context?: any;
+  externalContext?: ExternalContext;
   options?: {
     consensusThreshold?: number;
     maxRetries?: number;
     timeoutMs?: number;
     parallelExecution?: boolean;
+    includeExternalDataInPrompts?: boolean;
+    externalDataWeight?: number;
   };
 }
 
@@ -231,7 +239,7 @@ export class LLMOrchestrator {
       // Process through LLM interface
       const response = await execution.interface.processCMPMessage(cmpMessage, {
         query: request.query,
-        context: request.context,
+        context: request.externalContext?.data,
         evidence: Array.from(this.globalEvidence.values()),
         orchestration: true
       });

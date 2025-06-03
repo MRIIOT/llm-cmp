@@ -74,7 +74,7 @@ export class MCPClient {
       });
 
       this.process.stderr?.on('data', (data) => {
-        console.log(`🔍 MCP Server debug: ${data.toString().substring(0, 100)}`);
+        //console.log(`🔍 MCP Server debug: ${data.toString().substring(0, 100)}`);
       });
 
       this.process.on('error', (error) => {

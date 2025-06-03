@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Debug MCP Integration Demo" type="NodeJSConfigurationType" path-to-js-file="dist/demo/mcp-integration-demo.js" working-dir="$PROJECT_DIR$">
+  <configuration default="false" name="Debug MCP Integration (Breakpoints)" type="NodeJSConfigurationType" path-to-js-file="dist/demo/mcp-integration-demo.js" working-dir="$PROJECT_DIR$">
     <method v="2">
       <option name="RunConfigurationTask" enabled="true" run_configuration_name="Build TypeScript" run_configuration_type="npm" />
     </method>

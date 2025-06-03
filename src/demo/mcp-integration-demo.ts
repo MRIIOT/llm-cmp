@@ -54,20 +54,17 @@ export async function runMCPIntegrationDemo(): Promise<void> {
     console.log('=====================================');
     
     const tools = await mcpClient.listTools();
-    // TODO: timeout
-    //const resources = await mcpClient.listResources();
+    const resources = await mcpClient.listResources();
     
     console.log('📋 Available MCP Tools:');
     tools.forEach(tool => {
       console.log(`   • ${tool.name}: ${tool.description}`);
     });
 
-    /*
     console.log('\n📚 Available MCP Resources:');
     resources.forEach(resource => {
       console.log(`   • ${resource.name} (${resource.uri}): ${resource.description}`);
     });
-    */
 
     // Query live manufacturing data
     console.log('\n📡 PHASE 3: Querying Live Manufacturing Data');

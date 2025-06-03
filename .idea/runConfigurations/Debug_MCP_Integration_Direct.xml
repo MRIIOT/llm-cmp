@@ -1,7 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Debug MCP Integration (Direct)" type="NodeJSConfigurationType" path-to-js-file="src/demo/mcp-integration-demo.ts" working-dir="$PROJECT_DIR$">
-    <method v="2">
-      <option name="BuildArtifacts" enabled="true" />
-    </method>
-  </configuration>
-</component>
