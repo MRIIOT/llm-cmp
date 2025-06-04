@@ -321,25 +321,41 @@ export class LLMOrchestrator {
     // Collect all reasoning steps
     const allReasoning = successfulExecutions.flatMap(e => e.response?.reasoning || []);
     
-    // Calculate consensus metrics
-    const avgConfidence = allReasoning.length > 0 ? 
+    // Calculate consensus metrics with multi-agent value adjustment
+    let rawAvgConfidence = allReasoning.length > 0 ? 
       allReasoning.reduce((sum, step) => sum + step.confidence, 0) / allReasoning.length : 0;
+    
+    // Multi-agent confidence enhancement based on thoroughness and consensus
+    let adjustedConfidence = rawAvgConfidence;
+    
+    if (successfulExecutions.length > 1) {
+      // Multi-agent bonus factors
+      const thoroughnessBonus = Math.min(0.15, allReasoning.length * 0.01); // Up to 15% bonus for thoroughness
+      const consensusBonus = Math.min(0.1, (successfulExecutions.length - 1) * 0.03); // Up to 10% bonus for multiple agents
+      
+      // Apply bonuses but cap at reasonable levels
+      adjustedConfidence = Math.min(0.95, rawAvgConfidence + thoroughnessBonus + consensusBonus);
+      
+      console.log(`   📈 Multi-agent confidence adjustment: ${rawAvgConfidence.toFixed(3)} -> ${adjustedConfidence.toFixed(3)}`);
+      console.log(`   🔍 Thoroughness bonus: +${thoroughnessBonus.toFixed(3)} (${allReasoning.length} reasoning steps)`);
+      console.log(`   🤝 Consensus bonus: +${consensusBonus.toFixed(3)} (${successfulExecutions.length} agents)`);
+    }
     
     // Calculate reasoning diversity (unique reasoning types)
     const uniqueTypes = new Set(allReasoning.map(step => step.type));
     const reasoningDiversity = allReasoning.length > 0 ? uniqueTypes.size / allReasoning.length : 0;
     
     // Determine convergence
-    const converged = avgConfidence >= threshold && successfulExecutions.length >= 2;
+    const converged = adjustedConfidence >= threshold && successfulExecutions.length >= 2;
     
     const consensus: ConsensusResult = {
-      consensus_confidence: avgConfidence,
+      consensus_confidence: adjustedConfidence,
       participating_agents: successfulExecutions.length,
       reasoning_diversity: reasoningDiversity,
       converged
     };
     
-    console.log(`   📊 Consensus confidence: ${consensus.consensus_confidence.toFixed(3)}`);
+    console.log(`   📊 Final consensus confidence: ${consensus.consensus_confidence.toFixed(3)}`);
     console.log(`   👥 Participating agents: ${consensus.participating_agents}`);
     console.log(`   🌈 Reasoning diversity: ${consensus.reasoning_diversity.toFixed(3)}`);
     console.log(`   ${consensus.converged ? '✅' : '❌'} Consensus ${consensus.converged ? 'achieved' : 'not achieved'}`);
