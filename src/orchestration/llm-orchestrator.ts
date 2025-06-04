@@ -114,7 +114,7 @@ export class LLMOrchestrator {
   async orchestrate(request: OrchestrationRequest): Promise<OrchestrationResult> {
     const startTime = Date.now();
     console.log(`\n🎼 Orchestrating query with ${request.agents.length} agents...`);
-    console.log(`   Query: "${request.query}"`);
+    console.log(`   Query: "${request.query.substring(0, 100)}"`);
     
     try {
       // 1. Phase 1: Parallel agent execution

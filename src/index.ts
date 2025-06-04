@@ -12,6 +12,7 @@ import { runMockAdapterDemo } from './demo/mock-adapter-demo.js';
 import { runGeminiAdapterDemo } from './demo/gemini-adapter-demo.js';
 import { demonstrateLMStudioAdapter } from './demo/lmstudio-adapter-demo.js';
 import { runMCPIntegrationDemo } from './demo/mcp-integration-demo.js';
+import { demonstrateExecutiveConsensus } from './demo/executive-consensus-demo.js';
 
 async function main(): Promise<void> {
   console.log('🌟 LLM Orchestration System');
@@ -66,6 +67,9 @@ async function main(): Promise<void> {
     } else if (phase === 'mcp') {
       console.log('🏭 Running MCP Integration Demonstration\n');
       await runMCPIntegrationDemo();
+    } else if (phase === 'executive') {
+      console.log('🎯 Running Executive Consensus Demonstration\n');
+      await demonstrateExecutiveConsensus();
     } else {
       console.log('🚀 Running Complete System Demonstration\n');
       
@@ -98,6 +102,7 @@ async function main(): Promise<void> {
     console.log('  npm run dev gemini  # Run Gemini Adapter Demo');
     console.log('  npm run dev lmstudio # Run LM Studio Adapter Demo');
     console.log('  npm run dev mcp     # Run MCP Integration Demo');
+    console.log('  npm run dev executive # Run Executive Consensus Demo');
 
   } catch (error) {
     console.error('\n❌ System demonstration failed:', error);

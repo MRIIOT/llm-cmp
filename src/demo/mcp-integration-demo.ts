@@ -322,5 +322,5 @@ function getConfidenceLevel(confidence: number): string {
   return "Very Low";
 }
 
-// Run the demo
-runMCPIntegrationDemo().catch(console.error);
+// Export the demo function for explicit execution
+// (Do not auto-run - let main index.ts control when demos execute)
