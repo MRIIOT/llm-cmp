@@ -50,7 +50,7 @@ export class ScalabilityTests {
             synPermConnected: 0.15, // Higher threshold for more stable connections
             minPctOverlapDutyCycle: 0.002, // Slightly higher minimum
             dutyCyclePeriod: 500, // Faster adaptation
-            boostStrength: 3.0, // ENABLED BOOSTING - key fix
+            boostStrength: 3.0, // ENABLED BOOSTING - helps with homeostasis
             sparsity: 0.019, // FIXED: Match basic test sparsity
             seed: 42
         });
@@ -58,7 +58,7 @@ export class ScalabilityTests {
         this.temporalPooler = new TemporalPooler(2048, { // Updated to match column count
             cellsPerColumn: 32,
             activationThreshold: 3, // FIXED: Match exact basic test values
-            initialPermanence: 0.21,
+            initialPermanence: 0.51,  // FIXED: Above connected threshold so new segments work immediately
             connectedPermanence: 0.50,
             minThreshold: 2, // FIXED: Match exact basic test values  
             learningThreshold: 3, // FIXED: Match exact basic test values
@@ -77,6 +77,8 @@ export class ScalabilityTests {
         console.log(`  minThreshold: ${(this.temporalPooler as any).config.minThreshold}`);
         console.log(`  learningThreshold: ${(this.temporalPooler as any).config.learningThreshold}`);
         console.log(`  permanenceIncrement: ${(this.temporalPooler as any).config.permanenceIncrement}`);
+        console.log(`  initialPermanence: ${(this.temporalPooler as any).config.initialPermanence}`);
+        console.log(`  connectedPermanence: ${(this.temporalPooler as any).config.connectedPermanence}`);
 
         // Create HTM Region for prediction engine with optimized configuration
         const htmRegion = new HTMRegion({
@@ -109,7 +111,7 @@ export class ScalabilityTests {
             temporalConfig: {
                 cellsPerColumn: 32,
                 activationThreshold: 3, // FIXED: Match exact basic test values
-                initialPermanence: 0.21,
+                initialPermanence: 0.51,  // FIXED: Above connected threshold so new segments work immediately
                 connectedPermanence: 0.50,
                 minThreshold: 2, // FIXED: Match exact basic test values
                 learningThreshold: 3, // FIXED: Match exact basic test values
@@ -539,13 +541,32 @@ export class ScalabilityTests {
     }
 
     private async measureTemporalPoolerPerformance(sequences: number[][][]): Promise<ScalabilityMetrics> {
-        console.log(`    DEBUG: measureTemporalPoolerPerformance called with ${sequences.length} sequences`);
+        //console.log(`    DEBUG: measureTemporalPoolerPerformance called with ${sequences.length} sequences`);
         const startMemory = this.getMemoryUsage();
         const startTime = Date.now();
         
+        // CRITICAL FIX: Warm up spatial pooler to reach stable state
+        console.log(`    Spatial pooler warmup phase...`);
+        this.spatialPooler.reset();
+        
+        // Run all patterns through spatial pooler with learning to stabilize representations
+        for (let warmupRound = 0; warmupRound < 5; warmupRound++) {
+            if (warmupRound % 2 === 0) {
+                console.log(`      Warmup round ${warmupRound + 1}/5...`);
+            }
+            for (const sequence of sequences) {
+                for (const pattern of sequence) {
+                    const booleanPattern = pattern.map(val => val > 0.5);
+                    this.spatialPooler.compute(booleanPattern, true);
+                }
+            }
+        }
+        console.log(`    Spatial pooler warmup complete`);
+        
+        // Now disable spatial pooler learning for consistent SDRs
         // PHASE 1: Training with multiple epochs (like working basic tests)
         console.log(`    Training phase: ${sequences.length} sequences for 3 epochs...`);
-        console.log(`    DEBUG: About to start training loops...`);
+        //console.log(`    DEBUG: About to start training loops...`);
         
         for (let epoch = 0; epoch < 3; epoch++) {
             console.log(`      Epoch ${epoch + 1}/3...`);
@@ -558,11 +579,17 @@ export class ScalabilityTests {
                 // Train on complete sequence
                 for (let i = 0; i < sequences[seqIdx].length; i++) {
                     const booleanPattern = sequences[seqIdx][i].map(val => val > 0.5);
-                    const sdr = this.spatialPooler.compute(booleanPattern, false);
+                    const sdr = this.spatialPooler.compute(booleanPattern, false); // Learning DISABLED for consistent SDRs
                     const state = this.temporalPooler.compute(sdr, true); // Learning enabled
                     
+                    // DEBUG: Track SDR consistency
+                    if (epoch === 0 && seqIdx < 2 && i < 3) {
+                        const activeColumns = sdr.map((v, idx) => v ? idx : -1).filter(idx => idx >= 0);
+                        console.log(`        [TRAINING] Seq ${seqIdx}, pos ${i}: SDR active columns: [${activeColumns.slice(0, 5).join(', ')}...] (${activeColumns.length} total)`);
+                    }
+                    
                     // DEBUG: ALWAYS show debug info for all training (to verify code execution)
-                    //console.log(`        DEBUG CHECKPOINT: Training epoch=${epoch}, seqIdx=${seqIdx}, i=${i}`);
+                    //////console.log(`    DEBUG CHECKPOINT: Training epoch=${epoch}, seqIdx=${seqIdx}, i=${i}`);
                     
                     // DEBUG: Add winner cell tracking for first few sequences and positions (same as testing phase)
                     if (epoch === 0 && seqIdx < 3 && i < 3) {
@@ -572,12 +599,18 @@ export class ScalabilityTests {
                         if (state.winnerCells && state.winnerCells.size > 0) {
                             const winnerCellArray = Array.from(state.winnerCells).sort((a, b) => a - b);
                             const winnerSample = winnerCellArray.slice(0, 5);
-                            console.log(`        DEBUG TRAINING winner cells sample: [${winnerSample.join(', ')}]`);
+                            ////console.log(`    DEBUG TRAINING winner cells sample: [${winnerSample.join(', ')}]`);
+                        }
+                        
+                        // DEBUG: Check segment creation
+                        if (i > 0) {
+                            const metrics = this.temporalPooler.getLearningMetrics();
+                            ////console.log(`    DEBUG: After training seq ${seqIdx + 1} pos ${i}: ${metrics.totalSegments} total segments`);
                         }
                         
                         // Debug which temporal pooler is being used
                         if (i === 0 && seqIdx === 0) {
-                            console.log(`        DEBUG: Using temporal pooler with thresholds: act=${(this.temporalPooler as any).config.activationThreshold}, min=${(this.temporalPooler as any).config.minThreshold}, learn=${(this.temporalPooler as any).config.learningThreshold}`);
+                            ////console.log(`    DEBUG: Using temporal pooler with thresholds: act=${(this.temporalPooler as any).config.activationThreshold}, min=${(this.temporalPooler as any).config.minThreshold}, learn=${(this.temporalPooler as any).config.learningThreshold}`);
                         }
                         
                         // DEBUG: Show temporal connections being learned
@@ -586,43 +619,43 @@ export class ScalabilityTests {
                             if (prevState && prevState.winnerCells) {
                                 const prevWinners = Array.from(prevState.winnerCells as Set<number>).sort((a, b) => a - b);
                                 const currentWinners = Array.from(state.winnerCells).sort((a, b) => a - b);
-                                const currentWinnersSample = currentWinners.slice(0, 3).join(', ');
-                                console.log(`        DEBUG LEARNING CONNECTION: Previous winners [${prevWinners.slice(0, 3).join(', ')}] -> Current winners [${currentWinnersSample}]`);
-                                console.log(`        DEBUG LEARNING: Segments will be created on current cells pointing to previous cells`);
+                                ////console.log(`    DEBUG LEARNING: At pos ${i}, previous winners from pos ${i-1}: [${prevWinners.slice(0, 3).join(', ')}...]`);
+                                ////console.log(`    DEBUG LEARNING: Current winners at pos ${i}: [${currentWinners.slice(0, 3).join(', ')}...]`);
+                                ////console.log(`    DEBUG LEARNING: Segments will be created on cells at pos ${i} pointing to cells from pos ${i-1}`);
                             }
                         }
                     }
                     
                     // DEBUG: Trace segment creation during learning (Theory 2: Segment Retrieval Failure)
                     if (epoch === 0 && seqIdx === 0 && i === 1) {
-                        console.log(`        DEBUG SEGMENT CREATION: About to check what segments were created for winner cells`);
+                        //////console.log(`    DEBUG SEGMENT CREATION: About to check what segments were created for winner cells`);
                         const segments = this.temporalPooler.getLearningMetrics();
-                        console.log(`        DEBUG SEGMENT CREATION: Total segments after training: ${segments.totalSegments}`);
+                        //////console.log(`    DEBUG SEGMENT CREATION: Total segments after training: ${segments.totalSegments}`);
                         
                         // Get first winner cell and check its segments
                         if (state.winnerCells.size > 0) {
                             const firstWinnerCell = Array.from(state.winnerCells)[0];
-                            console.log(`        DEBUG SEGMENT CREATION: Checking segments for winner cell ${firstWinnerCell}`);
+                            ////console.log(`    DEBUG SEGMENT CREATION: Checking segments for winner cell ${firstWinnerCell}`);
                             
                             // Try to access temporal pooler internals to see segments
                             try {
                                 const cellSegments = (this.temporalPooler as any).cells?.[firstWinnerCell]?.segments || [];
-                                console.log(`        DEBUG SEGMENT CREATION: Winner cell ${firstWinnerCell} has ${cellSegments.length} segments`);
+                                ////console.log(`    DEBUG SEGMENT CREATION: Winner cell ${firstWinnerCell} has ${cellSegments.length} segments`);
                                 
                                 if (cellSegments.length > 0) {
                                     const firstSegment = cellSegments[0];
                                     const synapses = firstSegment?.synapses || [];
-                                    console.log(`        DEBUG SEGMENT CREATION: First segment has ${synapses.length} synapses`);
+                                    ////console.log(`    DEBUG SEGMENT CREATION: First segment has ${synapses.length} synapses`);
                                     if (synapses.length > 0) {
                                         const synapseSample = synapses.slice(0, 3).map((syn: any) => ({
                                             presynCell: syn.presynapticCell || syn.presynCell,
                                             perm: syn.permanence
                                         }));
-                                        console.log(`        DEBUG SEGMENT CREATION: Synapse sample:`, JSON.stringify(synapseSample));
+                                        ////console.log(`    DEBUG SEGMENT CREATION: Synapse sample:`, JSON.stringify(synapseSample));
                                     }
                                 }
                             } catch (error) {
-                                console.log(`        DEBUG SEGMENT CREATION: Error accessing internals: ${error instanceof Error ? error.message : String(error)}`);
+                                ////console.log(`    DEBUG SEGMENT CREATION: Error accessing internals: ${error instanceof Error ? error.message : String(error)}`);
                             }
                         }
                     }
@@ -636,9 +669,40 @@ export class ScalabilityTests {
             }
         }
         
+        // DEBUG: Manual prediction check right after training
+        console.log(`    DEBUG: Manual prediction check after training...`);
+        this.temporalPooler.resetState();
+        
+        // Present first pattern of first sequence
+        const testSeq = sequences[0];
+        const testSDR0 = this.spatialPooler.compute(testSeq[0].map(val => val > 0.5), false);
+        this.temporalPooler.compute(testSDR0, false);
+        console.log(`      Presented pattern 0`);
+        
+        // Present second pattern and check predictions
+        const testSDR1 = this.spatialPooler.compute(testSeq[1].map(val => val > 0.5), false);
+        this.temporalPooler.compute(testSDR1, false);
+        console.log(`      Presented pattern 1`);
+        
+        // Now check what's predicted for pattern 2
+        const predictedCells = this.temporalPooler.getNextTimestepPredictions();
+        console.log(`      Predictions for pattern 2: ${predictedCells.size} cells`);
+        
+        if (predictedCells.size > 0) {
+            const predictedColumns = Array.from(predictedCells).map(cell => Math.floor(cell / 32));
+            console.log(`      Predicted columns: [${predictedColumns.slice(0, 5).join(', ')}...]`);
+            
+            // Check actual pattern 2
+            const testSDR2 = this.spatialPooler.compute(testSeq[2].map(val => val > 0.5), false);
+            const actualColumns = testSDR2.map((v, idx) => v ? idx : -1).filter(idx => idx >= 0);
+            console.log(`      Actual pattern 2 columns: [${actualColumns.slice(0, 5).join(', ')}...]`);
+        }
+        
         // PHASE 2: Testing phase (like working basic tests)
         console.log(`    Testing phase: measuring prediction accuracy...`);
-        console.log(`    DEBUG: About to start testing ${sequences.length} sequences...`);
+        //console.log(`    DEBUG: About to start testing ${sequences.length} sequences...`);
+        
+        // Keep the same spatial pooler state from training for consistent SDRs
         
         let correctPredictions = 0;
         let totalPredictions = 0;
@@ -649,95 +713,103 @@ export class ScalabilityTests {
             
             const sequence = sequences[seqIdx];
             this.temporalPooler.resetState(); // Reset state but preserve learned segments
+            
+            // DEBUG: Verify state was reset
+            if (seqIdx < 2) {
+                const resetState = this.temporalPooler.getCurrentState();
+                //console.log(`      DEBUG: After resetState() - winner cells: ${resetState.winnerCells.size}, active cells: ${resetState.activeCells.size}`);
+            }
+            
             totalPatterns += sequence.length;
             
             // Warm up with first pattern to establish winner cells (like basic tests)
             const firstSDR = this.spatialPooler.compute(sequence[0].map(val => val > 0.5), false);
-            this.temporalPooler.compute(firstSDR, false);
+            
+            // DEBUG: Track SDR during testing
+            if (seqIdx < 2) {
+                const firstActiveColumns = firstSDR.map((v, idx) => v ? idx : -1).filter(idx => idx >= 0);
+                //console.log(`      [TESTING] Seq ${seqIdx}, pos 0: SDR active columns: [${firstActiveColumns.slice(0, 5).join(', ')}...] (${firstActiveColumns.length} total)`);
+            }
+            
+            const firstState = this.temporalPooler.compute(firstSDR, false);
+            
+            // DEBUG: Check state after first pattern
+            if (seqIdx < 2) {
+                //console.log(`      DEBUG: After first pattern - winner cells: ${firstState.winnerCells.size}, predictive cells: ${firstState.predictiveCells.size}`);
+            }
             
             // Test predictions starting from second pattern
             for (let i = 1; i < sequence.length - 1; i++) {
                 // DEBUG: Show temporal flow
                 if (seqIdx < 3) {
-                    console.log(`        DEBUG TEMPORAL FLOW: Sequence ${seqIdx + 1}, testing position ${i}`);
+                    ////console.log(`    DEBUG TEMPORAL FLOW: Sequence ${seqIdx + 1}, testing position ${i}`);
                     const prevState = this.temporalPooler.getCurrentState();
                     const prevWinners = Array.from(prevState.winnerCells).sort((a, b) => a - b);
-                    console.log(`        DEBUG TEMPORAL FLOW: Before compute - previous winners: [${prevWinners.slice(0, 5).join(', ')}]`);
+                    ////console.log(`    DEBUG TEMPORAL FLOW: Before compute - previous winners: [${prevWinners.slice(0, 5).join(', ')}]`);
                 }
                 
                 const booleanCurrentPattern = sequence[i].map(val => val > 0.5);
                 const currentSDR = this.spatialPooler.compute(booleanCurrentPattern, false);
+                
+                // DEBUG: Track SDR during testing
+                if (seqIdx < 2 && i < 3) {
+                    const currentActiveColumns = currentSDR.map((v, idx) => v ? idx : -1).filter(idx => idx >= 0);
+                    //console.log(`      [TESTING] Seq ${seqIdx}, pos ${i}: SDR active columns: [${currentActiveColumns.slice(0, 5).join(', ')}...] (${currentActiveColumns.length} total)`);
+                }
+                
                 this.temporalPooler.compute(currentSDR, false); // No learning during testing
                 
                 // DEBUG: Show state after compute
                 if (seqIdx < 3) {
                     const currentState = this.temporalPooler.getCurrentState();
                     const currentWinners = Array.from(currentState.winnerCells).sort((a, b) => a - b);
-                    console.log(`        DEBUG TEMPORAL FLOW: After compute - current winners: [${currentWinners.slice(0, 5).join(', ')}]`);
+                    ////console.log(`    DEBUG TEMPORAL FLOW: After compute - current winners: [${currentWinners.slice(0, 5).join(', ')}]`);
                 }
                 
                 // CRITICAL FIX: Use proper prediction method like working basic tests
-                console.log(`        DEBUG: About to call getNextTimestepPredictions() for sequence ${seqIdx + 1}, position ${i}`);
+                ////console.log(`    DEBUG: About to call getNextTimestepPredictions() for sequence ${seqIdx + 1}, position ${i}`);
                 
                 // DEBUG: Investigate segment retrieval failure (Theory 2)
                 if (seqIdx === 0 && i === 1) {
-                    console.log(`        DEBUG SEGMENT RETRIEVAL: Before prediction - current winner cells`);
+                    //console.log(`    DEBUG SEGMENT CHECK: Checking if segments exist that should predict next pattern`);
                     const currentState = this.temporalPooler.getCurrentState();
                     const currentWinners = Array.from(currentState.winnerCells).sort((a, b) => a - b);
-                    console.log(`        DEBUG SEGMENT RETRIEVAL: Current winners: [${currentWinners.slice(0, 5).join(', ')}] (showing first 5)`);
-                    
-                    // Try to peek at what segments exist on current winner cells
-                    console.log(`        DEBUG SEGMENT RETRIEVAL: Checking segments on current winner cells`);
-                    try {
-                        let segmentsFound = 0;
-                        let synapsesFound = 0;
-                        for (const winnerCell of Array.from(currentWinners).slice(0, 3)) {
-                            const cellSegments = (this.temporalPooler as any).cells?.[winnerCell]?.segments || [];
-                            segmentsFound += cellSegments.length;
-                            console.log(`        DEBUG SEGMENT RETRIEVAL: Winner cell ${winnerCell} has ${cellSegments.length} segments`);
-                            
-                            for (let segIdx = 0; segIdx < Math.min(cellSegments.length, 2); segIdx++) {
-                                const segment = cellSegments[segIdx];
-                                const synapses = segment?.synapses || [];
-                                synapsesFound += synapses.length;
-                                console.log(`        DEBUG SEGMENT RETRIEVAL: Segment ${segIdx} has ${synapses.length} synapses`);
-                                if (synapses.length > 0) {
-                                    const synSample = synapses.slice(0, 3).map((syn: any) => ({
-                                        pre: syn.presynapticCell || syn.presynCell,
-                                        perm: syn.permanence?.toFixed(3) || 'unknown'
-                                    }));
-                                    console.log(`        DEBUG SEGMENT RETRIEVAL: Synapse sample: ${JSON.stringify(synSample)}`);
-                                }
-                            }
-                        }
-                        console.log(`        DEBUG SEGMENT RETRIEVAL: Total checked: ${segmentsFound} segments, ${synapsesFound} synapses`);
-                    } catch (error) {
-                        console.log(`        DEBUG SEGMENT RETRIEVAL: Error accessing segments: ${error instanceof Error ? error.message : String(error)}`);
-                    }
+                    console.log(`        Current winner cells: [${currentWinners.slice(0, 5).join(', ')}...] (${currentWinners.length} total)`);
                 }
                 
                 const nextPredictiveCells = this.temporalPooler.getNextTimestepPredictions();
-                console.log(`        DEBUG: getNextTimestepPredictions() returned ${nextPredictiveCells.size} cells`);
+                ////console.log(`    DEBUG: getNextTimestepPredictions() returned ${nextPredictiveCells.size} cells`);
                 
                 // DEBUG: Clarify what we're checking
                 if (seqIdx < 3) {
-                    console.log(`        DEBUG PREDICTION CHECK: We have pattern at position ${i}, predicting pattern at position ${i+1}`);
-                    console.log(`        DEBUG: Current pattern generated these winner cells, segments on OTHER cells should now be active`);
-                    console.log(`        DEBUG: These segments should point to our current winner cells`);
+                    ////console.log(`    DEBUG PREDICTION CHECK: We have pattern at position ${i}, predicting pattern at position ${i+1}`);
+                    ////console.log(`    DEBUG: Current pattern generated these winner cells, segments on OTHER cells should now be active`);
+                    ////console.log(`    DEBUG: These segments should point to our current winner cells`);
                 }
                 
                 const booleanNextPattern = sequence[i + 1].map(val => val > 0.5);
                 const nextSDR = this.spatialPooler.compute(booleanNextPattern, false);
+                
+                // DEBUG: Verify we're using the correct next pattern
+                if (seqIdx < 2 && i === 1) {
+                    const nextActiveInputs = booleanNextPattern.filter(x => x).length;
+                    const nextPatternIndices = sequence[i + 1].map((v, idx) => v > 0.5 ? idx : -1).filter(idx => idx >= 0);
+                    //console.log(`    DEBUG: Next pattern (pos ${i + 1}): ${nextActiveInputs} active inputs, first 5 indices: [${nextPatternIndices.slice(0, 5).join(', ')}]`);
+                    
+                    const nextActiveColumns = nextSDR.map((v, idx) => v ? idx : -1).filter(idx => idx >= 0);
+                    //console.log(`    DEBUG: Next SDR: [${nextActiveColumns.slice(0, 5).join(', ')}...] (should match training pos ${i + 1})`);
+                }
                 
                 // Calculate prediction accuracy using same method as basic tests
                 const accuracy = this.calculatePredictionAccuracy(Array.from(nextPredictiveCells), nextSDR);
                 
                 if (seqIdx < 2 && i === 1) {
                     console.log(`        Sequence ${seqIdx + 1}, Position ${i}: ${nextPredictiveCells.size} predictive cells, accuracy: ${(accuracy * 100).toFixed(1)}%`);
+                    console.log(`        (At position ${i}, predicting what should appear at position ${i + 1})`);
                     
                     // Debug: Check what we're getting
                     const activeColumns = nextSDR.map((val, idx) => val ? idx : -1).filter(idx => idx >= 0);
-                    console.log(`        Next SDR has ${activeColumns.length} active columns: [${activeColumns.slice(0, 5).join(', ')}...]`);
+                    console.log(`        Next SDR (pos ${i + 1}) has ${activeColumns.length} active columns: [${activeColumns.slice(0, 5).join(', ')}...]`);
                     
                     if (nextPredictiveCells.size === 0) {
                         console.log(`        ERROR: No predictive cells generated!`);
@@ -872,12 +944,22 @@ export class ScalabilityTests {
     private generateDeterministicSequences(count: number, length: number): number[][][] {
         const sequences: number[][][] = [];
         
+        //console.log(`[DEBUG] Generating ${count} deterministic sequences of length ${length}`);
+        
         for (let i = 0; i < count; i++) {
             const sequence: number[][] = [];
             const seed = i * 1000;
             
             for (let j = 0; j < length; j++) {
-                sequence.push(this.generateSeededPattern(1000, 0.1, seed + j));
+                const patternSeed = seed + j;
+                const pattern = this.generateSeededPattern(1000, 0.1, patternSeed);
+                sequence.push(pattern);
+                
+                // DEBUG: Log pattern characteristics for first few sequences
+                if (i < 2) {
+                    const activeIndices = pattern.map((v, idx) => v === 1 ? idx : -1).filter(idx => idx >= 0);
+                    //console.log(`[DEBUG] Sequence ${i}, pattern ${j} (seed ${patternSeed}): ${activeIndices.length} active bits, first 5 indices: [${activeIndices.slice(0, 5).join(', ')}]`);
+                }
             }
             sequences.push(sequence);
         }

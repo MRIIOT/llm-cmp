@@ -100,6 +100,13 @@ export class SpatialPooler {
     this.columns = [];
     const numInputs = this.config.inputDimensions.reduce((a, b) => a * b, 1);
     
+    // DEBUG: Log initialization parameters
+    //console.log(`[DEBUG SP] Initializing ${this.config.numColumns} columns with ${numInputs} inputs`);
+    //console.log(`[DEBUG SP] Potential radius: ${this.config.potentialRadius}, potential pct: ${this.config.potentialPct}`);
+    
+    // DEBUG: Track which columns get connections to which input ranges
+    const columnInputRanges = new Map<string, number>();
+    
     for (let c = 0; c < this.config.numColumns; c++) {
       const column: ColumnState = {
         id: c,
@@ -114,6 +121,13 @@ export class SpatialPooler {
       // Create potential synapses for this column
       const numPotentialSynapses = Math.floor(numInputs * this.config.potentialPct);
       const potentialInputs = this.sampleInputs(numInputs, numPotentialSynapses);
+      
+      // DEBUG: Track input range for first few columns and some spread out columns
+      if (c < 5 || c === 255 || c === 256 || c === 512 || c === 1024 || c === 2047) {
+        const minInput = Math.min(...potentialInputs);
+        const maxInput = Math.max(...potentialInputs);
+        //console.log(`[DEBUG SP] Column ${c}: connected to inputs ${minInput}-${maxInput} (${potentialInputs.length} synapses)`);
+      }
       
       for (const inputIndex of potentialInputs) {
         const permanence = this.initPermanence();
@@ -131,6 +145,8 @@ export class SpatialPooler {
 
       this.columns.push(column);
     }
+    
+    //console.log(`[DEBUG SP] Column initialization complete`);
   }
 
   /**
@@ -191,7 +207,31 @@ export class SpatialPooler {
    * Calculate overlap scores between input and each column's connected synapses
    */
   private calculateOverlaps(inputVector: boolean[]): void {
+    // Safety check
+    if (!this.columns || this.columns.length === 0) {
+      console.error('SpatialPooler: columns array not initialized in calculateOverlaps!');
+      return;
+    }
+
+    // DEBUG: Check input pattern characteristics
+    if (this.iterationNum < 5 || this.iterationNum % 100 === 0) {
+      const activeInputs = inputVector.filter(x => x).length;
+      const firstActiveInput = inputVector.findIndex(x => x);
+      const lastActiveInput = inputVector.lastIndexOf(true);
+      //console.log(`[DEBUG SP] Input pattern: ${activeInputs} active bits, range ${firstActiveInput}-${lastActiveInput}`);
+    }
+    
+    // DEBUG: Track overlap distribution
+    let columnsWithNonZeroOverlap = 0;
+    let maxOverlapColumn = -1;
+    let maxOverlap = 0;
+    
     for (const column of this.columns) {
+      if (!column) {
+        console.error('SpatialPooler: undefined column found in columns array!');
+        continue;
+      }
+
       let overlap = 0;
       
       // Count how many connected synapses have active inputs
@@ -209,6 +249,27 @@ export class SpatialPooler {
       }
 
       column.overlaps = overlap;
+      
+      // DEBUG: Track statistics
+      if (overlap > 0) {
+        columnsWithNonZeroOverlap++;
+        if (overlap > maxOverlap) {
+          maxOverlap = overlap;
+          maxOverlapColumn = column.id;
+        }
+      }
+    }
+    
+    // DEBUG: Log overlap statistics
+    if (this.iterationNum < 5 || this.iterationNum % 100 === 0) {
+      //console.log(`[DEBUG SP] Columns with non-zero overlap: ${columnsWithNonZeroOverlap}/${this.config.numColumns}`);
+      //console.log(`[DEBUG SP] Max overlap: ${maxOverlap} at column ${maxOverlapColumn}`);
+      
+      // Check specific columns - add safety checks
+      const checkColumns = [0, 255, 256, 512, 1024, 2047];
+      const validCheckColumns = checkColumns.filter(c => c < this.columns.length && this.columns[c]);
+      const overlapsAtColumns = validCheckColumns.map(c => `${c}:${this.columns[c].overlaps}`).join(', ');
+      //console.log(`[DEBUG SP] Overlaps at columns [${overlapsAtColumns}]`);
     }
   }
 
@@ -218,20 +279,60 @@ export class SpatialPooler {
   private inhibitColumns(): number[] {
     const activeColumns: number[] = [];
 
+    if (!this.columns || this.columns.length === 0) {
+      console.error('SpatialPooler: columns array not initialized!');
+      return activeColumns;
+    }
+
     if (this.config.globalInhibition) {
       // Global inhibition: select top k columns globally
       const numActive = Math.floor(this.config.numColumns * this.config.sparsity);
+      
+      // DEBUG: Log overlap distribution
+      if (this.iterationNum < 5 || this.iterationNum % 100 === 0) {
+        const columnsWithOverlap = this.columns.filter(col => col && col.overlaps > 0).length;
+        const maxColumnWithOverlap = Math.max(...this.columns.map((col, idx) => (col && col.overlaps > 0) ? idx : -1));
+        //console.log(`[DEBUG SP] Iteration ${this.iterationNum}: ${columnsWithOverlap} columns have overlap, max column index with overlap: ${maxColumnWithOverlap}`);
+        
+        // Check overlap distribution across column ranges
+        const ranges = [
+          { name: "0-255", start: 0, end: 255 },
+          { name: "256-511", start: 256, end: 511 },
+          { name: "512-1023", start: 512, end: 1023 },
+          { name: "1024-2047", start: 1024, end: 2047 }
+        ];
+        
+        for (const range of ranges) {
+          const overlapsInRange = this.columns
+            .slice(range.start, range.end + 1)
+            .filter(col => col && col.overlaps > 0).length;
+          if (overlapsInRange > 0) {
+            //console.log(`  Range ${range.name}: ${overlapsInRange} columns with overlap`);
+          }
+        }
+      }
+      
       const sortedColumns = this.columns
-        .map((col, index) => ({ index, overlap: col.overlaps }))
+        .map((col, index) => ({ index, overlap: col ? col.overlaps : 0 }))
         .filter(col => col.overlap > 0)
         .sort((a, b) => b.overlap - a.overlap)
         .slice(0, numActive);
+      
+      const selectedIndices = sortedColumns.map(col => col.index);
+      
+      // DEBUG: Log selected columns
+      if (this.iterationNum < 5 || this.iterationNum % 100 === 0) {
+        //console.log(`[DEBUG SP] Selecting ${numActive} columns from ${this.config.numColumns} total (${(this.config.sparsity * 100).toFixed(1)}% sparsity)`);
+        //console.log(`[DEBUG SP] Selected columns: [${selectedIndices.slice(0, 10).join(', ')}...] (showing first 10)`);
+        const maxSelectedColumn = Math.max(...selectedIndices);
+        //console.log(`[DEBUG SP] Max selected column index: ${maxSelectedColumn}`);
+      }
 
-      return sortedColumns.map(col => col.index);
+      return selectedIndices;
     } else {
       // Local inhibition: compete within neighborhoods
       for (let c = 0; c < this.config.numColumns; c++) {
-        if (this.columns[c].overlaps > 0) {
+        if (this.columns[c] && this.columns[c].overlaps > 0) {
           const neighbors = this.getNeighbors(c);
           const kthScore = this.kthScore(neighbors, this.config.numActiveColumnsPerInhArea);
           
@@ -268,7 +369,7 @@ export class SpatialPooler {
    */
   private kthScore(neighborIndices: number[], k: number): number {
     const scores = neighborIndices
-      .map(index => this.columns[index].overlaps)
+      .map(index => (this.columns[index] ? this.columns[index].overlaps : 0))
       .sort((a, b) => b - a);
     
     return scores[Math.min(k - 1, scores.length - 1)] || 0;
@@ -354,10 +455,16 @@ export class SpatialPooler {
     
     for (let c = 0; c < this.config.numColumns; c++) {
       const neighbors = this.getNeighbors(c);
-      const maxDutyCycle = Math.max(
-        ...neighbors.map(n => this.columns[n].overlapDutyCycle)
-      );
-      this.minOverlapDutyCycles[c] = this.config.minPctOverlapDutyCycle * maxDutyCycle;
+      const dutyCycles = neighbors
+        .filter(n => this.columns[n]) // Filter out undefined columns
+        .map(n => this.columns[n].overlapDutyCycle);
+      
+      if (dutyCycles.length > 0) {
+        const maxDutyCycle = Math.max(...dutyCycles);
+        this.minOverlapDutyCycles[c] = this.config.minPctOverlapDutyCycle * maxDutyCycle;
+      } else {
+        this.minOverlapDutyCycles[c] = 0;
+      }
     }
   }
 

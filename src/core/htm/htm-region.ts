@@ -205,8 +205,8 @@ export class HTMRegion {
     // Update spatial states
     const overlaps = new Array(this.config.numColumns).fill(0); // Would need to expose from spatial pooler
     const boosts = new Array(this.config.numColumns).fill(1.0);
-    const activeDutyCycles = new Array(this.config.numColumns).fill(spatialMetrics.avgActiveDutyCycle);
-    const overlapDutyCycles = new Array(this.config.numColumns).fill(spatialMetrics.avgOverlapDutyCycle);
+    const activeDutyCycles = new Array(this.config.numColumns).fill(spatialMetrics?.avgActiveDutyCycle || 0);
+    const overlapDutyCycles = new Array(this.config.numColumns).fill(spatialMetrics?.avgOverlapDutyCycle || 0);
     
     this.columnStateManager.updateSpatialStates(
       spatialActivation,

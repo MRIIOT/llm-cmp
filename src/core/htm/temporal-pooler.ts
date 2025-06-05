@@ -82,6 +82,13 @@ export class TemporalPooler {
     this.numColumns = numColumns;
     this.config = this.createDefaultConfig(config);
     this.numCells = numColumns * this.config.cellsPerColumn;
+    
+    // DEBUG: Log initialization parameters
+    console.log(`[DEBUG] TemporalPooler initialized:`);
+    console.log(`  - numColumns: ${numColumns}`);
+    console.log(`  - cellsPerColumn: ${this.config.cellsPerColumn}`);
+    console.log(`  - numCells: ${this.numCells} (should be ${numColumns} × ${this.config.cellsPerColumn})`);
+    
     this.iteration = 0;
     this.nextSegmentId = 0;
     this.predictionAccuracy = [];
@@ -106,7 +113,7 @@ export class TemporalPooler {
       
       // DEBUG: Check RNG output
       if (this.iteration < 5 && Math.random() < 0.1) {
-        console.log(`        [DEBUG RNG] state=${state}, result=${result.toFixed(6)}`);
+        //console.log(`        [DEBUG RNG] state=${state}, result=${result.toFixed(6)}`);
       }
       
       return result;
@@ -120,7 +127,7 @@ export class TemporalPooler {
       learningThreshold: 10,
       maxSegmentsPerCell: 255,
       maxSynapsesPerSegment: 255,
-      initialPermanence: 0.21,
+      initialPermanence: 0.51,  // Above connected threshold so new segments work immediately
       connectedPermanence: 0.50,
       permanenceIncrement: 0.10,
       permanenceDecrement: 0.10,
@@ -215,7 +222,7 @@ export class TemporalPooler {
   private calculatePredictiveState(): void {
     // Debug: log previous state info
     if (this.iteration % 100 === 0 && this.previousState.winnerCells.size > 0) {
-      //console.log(`      [DEBUG] Iteration ${this.iteration}: Previous winner cells: ${this.previousState.winnerCells.size}, Previous active cells: ${this.previousState.activeCells.size}`);
+      ////console.log(`      [DEBUG] Iteration ${this.iteration}: Previous winner cells: ${this.previousState.winnerCells.size}, Previous active cells: ${this.previousState.activeCells.size}`);
     }
     
     let totalSegments = 0;
@@ -243,7 +250,7 @@ export class TemporalPooler {
         if (overlap > 0) {
           segmentsWithOverlap++;
           if (this.iteration % 100 === 0 && segmentsWithOverlap < 5) {
-            //console.log(`      [DEBUG] Cell ${cellId} Segment ${segmentIdx}: overlap ${overlap} (threshold: ${this.config.activationThreshold}), synapses: ${segment.synapses.length}`);
+            ////console.log(`      [DEBUG] Cell ${cellId} Segment ${segmentIdx}: overlap ${overlap} (threshold: ${this.config.activationThreshold}), synapses: ${segment.synapses.length}`);
           }
         }
         
@@ -263,8 +270,8 @@ export class TemporalPooler {
     }
     
     if (this.iteration % 100 === 0) {
-      //console.log(`      [DEBUG] Cells with segments: ${cellsWithSegments}/${cellsChecked}`);
-      //console.log(`      [DEBUG] Total segments: ${totalSegments}, Segments with overlap: ${segmentsWithOverlap}, Predictive cells: ${this.currentState.predictiveCells.size}`);
+      ////console.log(`      [DEBUG] Cells with segments: ${cellsWithSegments}/${cellsChecked}`);
+      ////console.log(`      [DEBUG] Total segments: ${totalSegments}, Segments with overlap: ${segmentsWithOverlap}, Predictive cells: ${this.currentState.predictiveCells.size}`);
     }
   }
 
@@ -277,7 +284,7 @@ export class TemporalPooler {
     // Debug logging
     const activeCount = activeColumns.filter(x => x).length;
     if (this.iteration % 100 === 0) {
-      //console.log(`      [DEBUG] Processing ${activeCount} active columns`);
+      ////console.log(`      [DEBUG] Processing ${activeCount} active columns`);
     }
     
     for (let columnIndex = 0; columnIndex < activeColumns.length; columnIndex++) {
@@ -323,7 +330,7 @@ export class TemporalPooler {
     }
     
     if (this.iteration % 100 === 0) {
-      //console.log(`      [DEBUG] Active cells: ${this.currentState.activeCells.size}, Winner cells: ${this.currentState.winnerCells.size}, Bursting columns: ${burstingColumnIndices.length}`);
+      ////console.log(`      [DEBUG] Active cells: ${this.currentState.activeCells.size}, Winner cells: ${this.currentState.winnerCells.size}, Bursting columns: ${burstingColumnIndices.length}`);
     }
     
     this.burstingColumns.push(burstingColumnIndices.length);
@@ -414,10 +421,10 @@ export class TemporalPooler {
     
     // Debug logging
     if (this.iteration % 100 === 0 || this.iteration < 20) {
-      console.log(`      [DEBUG] Creating segment for cell ${cellId}: ${presynapticCells.length} previous winner cells, sampling ${sampledCells.length}`);
-      console.log(`      [DEBUG] Previous winner cells: [${presynapticCells.slice(0, 5).join(', ')}...]`);
-      console.log(`      [DEBUG] Sampled cells: [${sampledCells.slice(0, 5).join(', ')}...]`);
-      console.log(`      [DEBUG] Max valid cell ID: ${maxValidCellId}, numCells: ${this.numCells}`);
+      //console.log(`      [DEBUG] Creating segment for cell ${cellId}: ${presynapticCells.length} previous winner cells, sampling ${sampledCells.length}`);
+      //console.log(`      [DEBUG] Previous winner cells: [${presynapticCells.slice(0, 5).join(', ')}...]`);
+      //console.log(`      [DEBUG] Sampled cells: [${sampledCells.slice(0, 5).join(', ')}...]`);
+      //console.log(`      [DEBUG] Max valid cell ID: ${maxValidCellId}, numCells: ${this.numCells}`);
     }
     
     for (const presynapticCell of sampledCells) {
@@ -435,8 +442,8 @@ export class TemporalPooler {
     this.currentState.learningSegments.add(segmentId);
     
     if (this.iteration % 100 === 0 || this.iteration < 20) {
-      console.log(`      [DEBUG] Created segment ${segmentId} with ${newSegment.synapses.length} synapses, initial permanence: ${this.config.initialPermanence}`);
-      console.log(`      [DEBUG] First 3 synapses connect to cells: [${newSegment.synapses.slice(0, 3).map(s => s.presynapticCell).join(', ')}]`);
+      //console.log(`      [DEBUG] Created segment ${segmentId} with ${newSegment.synapses.length} synapses, initial permanence: ${this.config.initialPermanence}`);
+      //console.log(`      [DEBUG] First 3 synapses connect to cells: [${newSegment.synapses.slice(0, 3).map(s => s.presynapticCell).join(', ')}]`);
     }
   }
 
@@ -505,7 +512,7 @@ export class TemporalPooler {
     
     // Debug logging for segments with some overlap
     if (overlap > 0 && overlap < 10) { // Only log first few interesting cases
-      console.log(`          DEBUG cell=${cellId} seg=${segIdx}: ${totalSynapses} synapses, ${connectedSynapses} connected, ${overlap} active, perm_threshold=${this.config.connectedPermanence}`);
+      //console.log(`          DEBUG cell=${cellId} seg=${segIdx}: ${totalSynapses} synapses, ${connectedSynapses} connected, ${overlap} active, perm_threshold=${this.config.connectedPermanence}`);
       
       // Sample a few synapses for detailed analysis
       const sampleSynapses = segment.synapses.slice(0, 3);
@@ -513,7 +520,7 @@ export class TemporalPooler {
         const syn = sampleSynapses[i];
         const isConnected = syn.permanence >= this.config.connectedPermanence;
         const isActive = activeCells.has(syn.presynapticCell);
-        console.log(`            synapse ${i}: presynCell=${syn.presynapticCell}, perm=${syn.permanence.toFixed(3)}, connected=${isConnected}, active=${isActive}`);
+        //console.log(`            synapse ${i}: presynCell=${syn.presynapticCell}, perm=${syn.permanence.toFixed(3)}, connected=${isConnected}, active=${isActive}`);
       }
     }
     
@@ -538,7 +545,7 @@ export class TemporalPooler {
     
     // Debug logging for very verbose debugging
     if (this.iteration % 100 === 0 && segment.synapses.length > 0 && Math.random() < 0.01) {
-      //console.log(`      [DEBUG] Segment overlap calc: ${segment.synapses.length} synapses, ${connectedSynapses} connected, ${overlap} overlap with ${activeCells.size} active cells`);
+      ////console.log(`      [DEBUG] Segment overlap calc: ${segment.synapses.length} synapses, ${connectedSynapses} connected, ${overlap} overlap with ${activeCells.size} active cells`);
     }
     
     return overlap;
@@ -615,8 +622,8 @@ export class TemporalPooler {
     
     // DEBUG: Log the input and shuffled arrays
     if (this.iteration < 20 && array.length > 0 && array.length <= 50) {
-      console.log(`        [DEBUG sampleArray] Input array (first 5): [${array.slice(0, 5).join(', ')}]`);
-      console.log(`        [DEBUG sampleArray] Array length: ${array.length}, sampleSize: ${sampleSize}`);
+      //console.log(`        [DEBUG sampleArray] Input array (first 5): [${array.slice(0, 5).join(', ')}]`);
+      //console.log(`        [DEBUG sampleArray] Array length: ${array.length}, sampleSize: ${sampleSize}`);
     }
     
     // Fisher-Yates shuffle using seeded RNG
@@ -626,7 +633,7 @@ export class TemporalPooler {
       
       // DEBUG: Log first few swaps
       if (this.iteration < 20 && array.length > 0 && array.length <= 50 && i >= shuffled.length - 3) {
-        console.log(`        [DEBUG sampleArray] i=${i}, rng=${rngValue.toFixed(4)}, j=${j}, swapping ${shuffled[i]} <-> ${shuffled[j]}`);
+        //console.log(`        [DEBUG sampleArray] i=${i}, rng=${rngValue.toFixed(4)}, j=${j}, swapping ${shuffled[i]} <-> ${shuffled[j]}`);
       }
       
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
@@ -636,8 +643,8 @@ export class TemporalPooler {
     
     // DEBUG: Log the result
     if (this.iteration < 20 && array.length > 0 && array.length <= 50) {
-      console.log(`        [DEBUG sampleArray] After shuffle (first 10): [${shuffled.slice(0, 10).join(', ')}]`);
-      console.log(`        [DEBUG sampleArray] Result (first 5): [${result.slice(0, 5).join(', ')}]`);
+      //console.log(`        [DEBUG sampleArray] After shuffle (first 10): [${shuffled.slice(0, 10).join(', ')}]`);
+      //console.log(`        [DEBUG sampleArray] Result (first 5): [${result.slice(0, 5).join(', ')}]`);
     }
     
     return result;
@@ -748,7 +755,7 @@ export class TemporalPooler {
    * This is the key method for sequence completion testing
    */
   public getNextTimestepPredictions(): Set<number> {
-    console.log(`        DEBUG: getNextTimestepPredictions() called at iteration ${this.iteration}`);
+    //console.log(`        DEBUG: getNextTimestepPredictions() called at iteration ${this.iteration}`);
     
     const predictiveCells = new Set<number>();
     
@@ -762,11 +769,11 @@ export class TemporalPooler {
     let segmentsAtThreshold = 0;
     
     // DEBUG: Log current winner cells and state
-    console.log(`        DEBUG getNextTimestepPredictions: ${this.currentState.winnerCells.size} current winner cells, iteration=${this.iteration}, threshold=${this.config.activationThreshold}`);
+    //console.log(`        DEBUG getNextTimestepPredictions: ${this.currentState.winnerCells.size} current winner cells, iteration=${this.iteration}, threshold=${this.config.activationThreshold}`);
     if (this.currentState.winnerCells.size > 0) {
       const winnerCellsArray = Array.from(this.currentState.winnerCells);
       const sampleWinners = winnerCellsArray.slice(0, Math.min(5, winnerCellsArray.length));
-      console.log(`        DEBUG winner cells sample: [${sampleWinners.join(', ')}]`);
+      //console.log(`        DEBUG winner cells sample: [${sampleWinners.join(', ')}]`);
     } else {
       console.log(`        WARNING: No winner cells available for prediction!`);
     }
@@ -797,7 +804,7 @@ export class TemporalPooler {
           
           // DEBUG: Log first few segments with overlap
           if (segmentsWithOverlap <= 5) {
-            console.log(`        DEBUG segment cell=${cellId} seg=${segIdx}: overlap=${overlap}, synapses=${segment.synapses.length}, threshold=${this.config.activationThreshold}`);
+            //console.log(`        DEBUG segment cell=${cellId} seg=${segIdx}: overlap=${overlap}, synapses=${segment.synapses.length}, threshold=${this.config.activationThreshold}`);
             
             // Check connected synapses
             let connectedSynapses = 0;
@@ -810,7 +817,7 @@ export class TemporalPooler {
                 }
               }
             }
-            console.log(`          Connected synapses: ${connectedSynapses}, Active connected: ${activeSynapses}`);
+            //console.log(`          Connected synapses: ${connectedSynapses}, Active connected: ${activeSynapses}`);
           }
         }
         
@@ -823,9 +830,9 @@ export class TemporalPooler {
     }
     
     // DEBUG: Summary statistics
-    console.log(`        DEBUG Summary: ${totalCells} cells, ${cellsWithSegments} with segments, ${totalSegments} total segments`);
-    console.log(`        DEBUG Checked ${segmentsChecked} segments, ${segmentsWithOverlap} with overlap > 0, max overlap = ${maxOverlapSeen}`);
-    console.log(`        DEBUG ${segmentsAtThreshold} segments at threshold, ${predictiveCells.size} predictive cells`);
+    //console.log(`        DEBUG Summary: ${totalCells} cells, ${cellsWithSegments} with segments, ${totalSegments} total segments`);
+    //console.log(`        DEBUG Checked ${segmentsChecked} segments, ${segmentsWithOverlap} with overlap > 0, max overlap = ${maxOverlapSeen}`);
+    //console.log(`        DEBUG ${segmentsAtThreshold} segments at threshold, ${predictiveCells.size} predictive cells`);
     
     return predictiveCells;
   }
@@ -910,7 +917,7 @@ export function createDefaultTemporalPoolerConfig(
     learningThreshold: 10,
     maxSegmentsPerCell: 255,
     maxSynapsesPerSegment: 255,
-    initialPermanence: 0.21,
+    initialPermanence: 0.51,  // Above connected threshold so new segments work immediately
     connectedPermanence: 0.50,
     permanenceIncrement: 0.10,
     permanenceDecrement: 0.10,

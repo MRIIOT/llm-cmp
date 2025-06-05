@@ -169,6 +169,24 @@ export class ColumnStateManager {
       throw new Error(`Expected ${this.numColumns} columns, got ${activeColumns.length}`);
     }
 
+    // Add safety checks for all input arrays
+    if (!overlaps || overlaps.length === 0) {
+      console.warn('Warning: overlaps array is undefined or empty, using defaults');
+      overlaps = new Array(this.numColumns).fill(0);
+    }
+    if (!boosts || boosts.length === 0) {
+      console.warn('Warning: boosts array is undefined or empty, using defaults');
+      boosts = new Array(this.numColumns).fill(1.0);
+    }
+    if (!activeDutyCycles || activeDutyCycles.length === 0) {
+      console.warn('Warning: activeDutyCycles array is undefined or empty, using defaults');
+      activeDutyCycles = new Array(this.numColumns).fill(0);
+    }
+    if (!overlapDutyCycles || overlapDutyCycles.length === 0) {
+      console.warn('Warning: overlapDutyCycles array is undefined or empty, using defaults');
+      overlapDutyCycles = new Array(this.numColumns).fill(0);
+    }
+
     for (let i = 0; i < this.numColumns; i++) {
       const state = this.currentStates[i];
       const learningState = this.learningStates[i];
