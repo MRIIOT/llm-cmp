@@ -2,7 +2,7 @@
 
 ## System Overview
 
-The temporal processing system implements a sophisticated hierarchical temporal framework that combines principles from predictive coding theory, episodic memory, and online sequence learning. This system enables real-time temporal pattern recognition, prediction, and adaptation across multiple timescales.
+The temporal processing system implements a  hierarchical temporal framework that combines principles from predictive coding theory, episodic memory, and online sequence learning. This system enables real-time temporal pattern recognition, prediction, and adaptation across multiple timescales.
 
 ### Core Design Principles
 

@@ -141,7 +141,7 @@ This module implements a complete Hierarchical Temporal Memory (HTM) system base
 
 ### 5. Prediction Engine (`prediction-engine.ts`)
 
-**Purpose**: Advanced prediction system leveraging HTM regions for sophisticated forecasting, anomaly detection, and pattern recognition.
+**Purpose**: Advanced prediction system leveraging HTM regions for  forecasting, anomaly detection, and pattern recognition.
 
 **Key Classes**:
 - `PredictionEngine`: Main prediction system

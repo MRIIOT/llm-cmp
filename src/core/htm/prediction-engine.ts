@@ -3,7 +3,7 @@
  * 
  * Advanced prediction system that leverages HTM regions for multi-step
  * sequence prediction, anomaly detection, and temporal pattern recognition.
- * Provides sophisticated forecasting capabilities based on learned temporal
+ * Provides forecasting capabilities based on learned temporal
  * patterns.
  */
 

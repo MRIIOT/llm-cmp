@@ -2,7 +2,7 @@
 
 ## System Overview
 
-The core system integrates two complementary neural architectures: a biologically-inspired Hierarchical Temporal Memory (HTM) system and a sophisticated Temporal Processing framework. Together, they form a comprehensive cognitive architecture capable of learning, predicting, and adapting to complex temporal patterns across multiple scales.
+The core system integrates two complementary neural architectures: a biologically-inspired Hierarchical Temporal Memory (HTM) system and a  Temporal Processing framework. Together, they form a comprehensive cognitive architecture capable of learning, predicting, and adapting to complex temporal patterns across multiple scales.
 
 ## Architecture Integration
 
@@ -40,7 +40,7 @@ Sequence Memory → Episodic Storage & Retrieval
 - **Predictive Coding**: Hierarchical error-driven learning
 - **Episodic Memory**: Rich contextual storage and retrieval
 - **Flexible Learning**: Adaptive online sequence learning
-- **Context Management**: Sophisticated temporal context tracking
+- **Context Management**:  temporal context tracking
 
 ## Integration Points
 

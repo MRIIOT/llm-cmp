@@ -1,6 +1,6 @@
 # Bayesian Evidence System - Technical Documentation
 
-This directory contains a sophisticated Bayesian evidence system designed for probabilistic reasoning, belief updating, and evidence aggregation in the LLM-CMP (Large Language Model Consensus Modeling Platform) project. The system implements dynamic Bayesian networks with multiple inference methods, advanced conflict resolution, and multi-source evidence aggregation.
+This directory contains a  Bayesian evidence system designed for probabilistic reasoning, belief updating, and evidence aggregation in the LLM-CMP (Large Language Model Consensus Modeling Platform) project. The system implements dynamic Bayesian networks with multiple inference methods, advanced conflict resolution, and multi-source evidence aggregation.
 
 ## System Architecture Overview
 
@@ -48,7 +48,7 @@ The `BayesianNetwork` class implements a dynamic Bayesian network that can be au
 
 ### 2. BeliefUpdater (`belief-updater.ts`)
 
-The `BeliefUpdater` implements sophisticated belief revision algorithms that update probability distributions as new evidence arrives.
+The `BeliefUpdater` implements  belief revision algorithms that update probability distributions as new evidence arrives.
 
 #### Update Methods:
 
@@ -138,7 +138,7 @@ The `ConflictResolver` handles contradictions and inconsistencies in evidence us
 
 ### 4. EvidenceAggregator (`evidence-aggregator.ts`)
 
-The `EvidenceAggregator` combines evidence from multiple sources using sophisticated fusion techniques.
+The `EvidenceAggregator` combines evidence from multiple sources using  fusion techniques.
 
 #### Aggregation Methods:
 
