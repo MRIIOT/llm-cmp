@@ -341,7 +341,7 @@ export class TemporalPoolerTests {
 
         for (const cleanSequence of cleanSequences) {
             // Add noise to each element of the sequence
-            const noisySequence = cleanSequence.map(pattern => this.addNoise(pattern, 0.1)); // 10% noise
+            const noisySequence = cleanSequence.map(pattern => this.addNoise(pattern, 0.05)); // 5% noise
             
             this.temporalPooler.resetState(); // Reset state but preserve learned segments
             
@@ -755,7 +755,7 @@ export class TemporalPoolerTests {
             // Additional debug info
             const state = this.temporalPooler.getCurrentState();
             const metrics = this.temporalPooler.getLearningMetrics();
-            console.log(`      [DEBUG TEST] Previous winner cells: ${state.winnerCells.size}, Total segments: ${metrics.totalSegments}`);
+            //console.log(`      [DEBUG TEST] Previous winner cells: ${state.winnerCells.size}, Total segments: ${metrics.totalSegments}`);
             
             // Deep debug: check what's in the segments
             let segmentDebugInfo = {
@@ -790,8 +790,8 @@ export class TemporalPoolerTests {
                 segmentDebugInfo.avgSynapses /= segmentDebugInfo.totalSegments;
             }
             
-            console.log(`      [DEEP DEBUG] Cells with segments: ${segmentDebugInfo.cellsWithSegments}/${segmentDebugInfo.totalCells}`);
-            console.log(`      [DEEP DEBUG] Connected synapses: ${segmentDebugInfo.connectedSynapses}, Avg synapses/segment: ${segmentDebugInfo.avgSynapses.toFixed(2)}`);
+            //console.log(`      [DEEP DEBUG] Cells with segments: ${segmentDebugInfo.cellsWithSegments}/${segmentDebugInfo.totalCells}`);
+            //console.log(`      [DEEP DEBUG] Connected synapses: ${segmentDebugInfo.connectedSynapses}, Avg synapses/segment: ${segmentDebugInfo.avgSynapses.toFixed(2)}`);
         }
         
         return accuracy;

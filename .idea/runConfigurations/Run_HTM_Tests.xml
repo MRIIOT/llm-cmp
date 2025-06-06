@@ -1,7 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Run HTM Tests" type="NodeJSConfigurationType" path-to-js-file="dist/tests/htm/run-htm-tests.js" working-dir="$PROJECT_DIR$">
-    <method v="2">
-      <option name="RunConfigurationTask" enabled="true" run_configuration_name="Build TypeScript" run_configuration_type="npm" />
-    </method>
-  </configuration>
-</component>

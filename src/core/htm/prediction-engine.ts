@@ -202,9 +202,9 @@ export class PredictionEngine {
    * Convert column predictions back to input space
    */
   private convertColumnsToInput(columnPredictions: boolean[]): boolean[] {
-    // Get the input size from HTM region state
-    const regionState = this.htmRegion.getCurrentState();
-    const inputSize = 200; // Default size used in tests
+    // Get the input size from HTM region configuration
+    // Access the inputSize from the HTM region's config
+    const inputSize = (this.htmRegion as any).config.inputSize || 1000; // Fallback to 1000 if not accessible
     
     // If we have a direct match in sizes, use it directly
     if (columnPredictions.length === inputSize) {
@@ -794,6 +794,8 @@ export class PredictionEngine {
    * Reset prediction engine
    */
   public reset(): void {
+    console.log(`[PredictionEngine.reset] Resetting prediction engine. Pattern library size before reset: ${this.patternLibrary.size}`);
+    
     // Clear temporal state but preserve learned patterns
     this.predictionHistory = [];
     // Don't clear pattern library - we want to keep learned patterns!
@@ -802,6 +804,8 @@ export class PredictionEngine {
     this.contextHistory = [];
     this.accuracyTracker = [];
     
+    console.log(`[PredictionEngine.reset] Pattern library size after reset: ${this.patternLibrary.size} (preserved)`);
+    
     // Reset HTM region's temporal state but try to preserve spatial learning
     // Note: This might affect the first few predictions after reset
     const currentState = this.htmRegion.getCurrentState();
@@ -809,7 +813,8 @@ export class PredictionEngine {
     
     // Process a few neutral patterns to stabilize the HTM region
     // This helps with initial predictions after reset
-    const neutralPattern = new Array(200).fill(0);
+    const inputSize = (this.htmRegion as any).config.inputSize || 1000;
+    const neutralPattern = new Array(inputSize).fill(0);
     for (let i = 0; i < 3; i++) {
       this.htmRegion.compute(neutralPattern.map(v => v > 0.5), false);
     }
@@ -868,6 +873,8 @@ export class PredictionEngine {
    * Train on sequence method expected by tests
    */
   public trainOnSequence(sequence: number[][]): void {
+    //console.log(`[PredictionEngine.trainOnSequence] Training on sequence with ${sequence.length} patterns`);
+    
     // Convert number arrays to boolean arrays
     const booleanSequence = sequence.map(pattern => 
       pattern.map(val => val > 0.5)
@@ -910,9 +917,15 @@ export class PredictionEngine {
         pattern.predictiveValue = 0.9; // High confidence for sequential patterns
       }
       
+      if (i < 2) {
+        //console.log(`  Pattern ${i}: signature="${signature}", sequence length: ${pattern.sequence.length}, frequency: ${pattern.frequency}`);
+      }
+      
       // Also update the HTM's internal state by processing the pattern
       this.process(sequence[i]);
     }
+    
+    //console.log(`  Pattern library size after training: ${this.patternLibrary.size}`);
     
     // Process the sequence one more time to strengthen associations
     for (const pattern of sequence) {
@@ -927,6 +940,13 @@ export class PredictionEngine {
     // Handle number array input (backward compatibility)
     if (Array.isArray(input)) {
       const booleanInput = input.map(val => val > 0.5);
+      
+      // DEBUG: Log input characteristics
+      const activeCount = booleanInput.filter(b => b).length;
+      const debugPrefix = `[PredictionEngine.predict]`;
+      if (this.sequenceMemory.length <= 2) {
+        //console.log(`${debugPrefix} Input size: ${input.length}, active bits: ${activeCount}, sequence memory: ${this.sequenceMemory.length}`);
+      }
       
       // First, check if we have this pattern in our library
       const signature = this.generatePatternSignature(booleanInput);
@@ -944,6 +964,10 @@ export class PredictionEngine {
           confidence *= 0.95;
         }
         
+        if (this.sequenceMemory.length <= 2) {
+          //console.log(`${debugPrefix} Found pattern in library! Returning known sequence. Active bits in prediction: ${numberPattern.filter(v => v > 0).length}`);
+        }
+        
         return {
           pattern: numberPattern,
           confidence: confidence
@@ -957,6 +981,10 @@ export class PredictionEngine {
         const nextPattern = bestMatch.pattern.sequence[1];
         const numberPattern = nextPattern.map(val => val ? 1 : 0);
         
+        if (this.sequenceMemory.length <= 2) {
+          //console.log(`${debugPrefix} Found partial match (${(bestMatch.similarity * 100).toFixed(1)}% similar). Active bits in prediction: ${numberPattern.filter(v => v > 0).length}`);
+        }
+        
         return {
           pattern: numberPattern,
           confidence: bestMatch.pattern.predictiveValue * bestMatch.similarity
@@ -965,6 +993,11 @@ export class PredictionEngine {
       
       // If still no match, try HTM prediction
       const htmOutput = this.htmRegion.compute(booleanInput, false);
+      
+      if (this.sequenceMemory.length <= 2) {
+        //console.log(`${debugPrefix} No pattern match. Using HTM. Pattern library size: ${this.patternLibrary.size}`);
+        //console.log(`${debugPrefix} HTM predictions: ${htmOutput.predictions ? htmOutput.predictions.filter(p => p).length : 0} active columns`);
+      }
       
       // Check if HTM has predictions
       if (htmOutput.predictions && htmOutput.predictions.some(p => p)) {
@@ -975,6 +1008,10 @@ export class PredictionEngine {
         const confidence = htmOutput.predictionConfidence.length > 0 ?
           htmOutput.predictionConfidence.reduce((a, b) => a + b, 0) / htmOutput.predictionConfidence.length : 0;
         
+        if (this.sequenceMemory.length <= 2) {
+          //console.log(`${debugPrefix} HTM prediction: ${numberPattern.filter(v => v > 0).length} active bits, confidence: ${confidence.toFixed(3)}`);
+        }
+        
         return {
           pattern: numberPattern,
           confidence: Math.max(0, Math.min(1, confidence))
@@ -982,6 +1019,10 @@ export class PredictionEngine {
       }
       
       // No prediction available - return zero pattern
+      if (this.sequenceMemory.length <= 2) {
+        //console.log(`${debugPrefix} No prediction available! Returning zero pattern.`);
+      }
+      
       return {
         pattern: new Array(input.length).fill(0),
         confidence: 0
