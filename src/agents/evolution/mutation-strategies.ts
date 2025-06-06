@@ -523,6 +523,19 @@ export class MutationManager {
     const profile = agent.getSpecializationProfile();
     const structuralMutation = config.structuralMutation as StructuralMutation;
     
+    // Check if structuralMutation is properly defined
+    if (!structuralMutation || !structuralMutation.mutationType) {
+      // Create a default structural mutation if none provided
+      const defaultMutation: StructuralMutation = {
+        mutationType: 'add_capability',
+        targetStructure: 'capability',
+        parameters: {},
+        reversibilityInfo: { reversible: true },
+        structuralImpact: 0.3
+      };
+      return this.executeStructuralMutation(agent, { ...config, structuralMutation: defaultMutation });
+    }
+    
     let mutatedCapabilities: AgentCapability[] = [...profile.capabilities];
     const mutationPoints: MutationPoint[] = [];
 
@@ -1123,7 +1136,7 @@ export class MutationManager {
   private calculateStructuralRiskLevel(mutation: StructuralMutation, points: MutationPoint[]): number {
     // Structural mutations are generally riskier
     const baseRisk = 0.4;
-    const reversibilityBonus = mutation.reversibilityInfo.reversible ? -0.1 : 0.1;
+    const reversibilityBonus = (mutation.reversibilityInfo && mutation.reversibilityInfo.reversible) ? -0.1 : 0.1;
     return Math.max(0, baseRisk + reversibilityBonus);
   }
 

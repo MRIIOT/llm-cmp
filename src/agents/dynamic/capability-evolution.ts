@@ -337,11 +337,6 @@ export class CapabilityEvolution {
     genome2: CapabilityGenome,
     method: string
   ): Promise<CapabilityGenome> {
-    const operator = this.operators.get(`crossover_${method}`);
-    if (!operator) {
-      throw new Error(`Unknown crossover method: ${method}`);
-    }
-
     // Create combined genome through crossover
     const offspringGenes = new Map();
     
@@ -364,11 +359,40 @@ export class CapabilityEvolution {
         });
         break;
         
+      case 'multi_point':
+        // Multi-point crossover with 2-3 crossover points
+        const numPoints = 2 + Math.floor(Math.random() * 2); // 2 or 3 points
+        const points = new Set<number>();
+        while (points.size < numPoints) {
+          points.add(Math.floor(Math.random() * genome1.genes.size));
+        }
+        const crossoverPoints = Array.from(points).sort((a, b) => a - b);
+        
+        let geneIndex = 0;
+        let currentParent = 1; // Start with parent 1
+        let pointIndex = 0;
+        
+        genome1.genes.forEach((value, key) => {
+          // Switch parent at crossover points
+          if (pointIndex < crossoverPoints.length && geneIndex >= crossoverPoints[pointIndex]) {
+            currentParent = currentParent === 1 ? 2 : 1;
+            pointIndex++;
+          }
+          
+          const useParent1 = currentParent === 1;
+          offspringGenes.set(key, useParent1 ? value : genome2.genes.get(key));
+          geneIndex++;
+        });
+        break;
+        
       case 'semantic':
         offspringGenes.set('strength', (genome1.genes.get('strength') + genome2.genes.get('strength')) / 2);
         offspringGenes.set('adaptationRate', Math.max(genome1.genes.get('adaptationRate'), genome2.genes.get('adaptationRate')));
         offspringGenes.set('specialization', [...genome1.genes.get('specialization'), ...genome2.genes.get('specialization')]);
         break;
+        
+      default:
+        throw new Error(`Unknown crossover method: ${method}`);
     }
 
     return {

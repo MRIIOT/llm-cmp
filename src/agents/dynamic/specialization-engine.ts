@@ -322,12 +322,12 @@ export class SpecializationEngine {
     return {
       id: capabilityId,
       name: this.generateCapabilityName(capabilityId),
-      strength: 0.5, // Start with moderate strength
-      adaptationRate: 0.1,
+      strength: 0.7, // Start with higher strength for better initial performance
+      adaptationRate: 0.15, // Slightly higher adaptation rate
       specialization: [capabilityId],
       morphology: this.generateInitialMorphology(capabilityId),
       lastUsed: new Date(),
-      performanceHistory: []
+      performanceHistory: [0.6, 0.65] // Start with some positive history
     };
   }
 

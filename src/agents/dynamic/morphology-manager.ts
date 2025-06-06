@@ -610,6 +610,55 @@ export class MorphologyManager {
       emergentProperties: [],
       adaptationHistory: []
     });
+
+    // Hybrid template - combines hierarchical and network features
+    this.structureTemplates.set('hybrid', {
+      id: 'hybrid',
+      type: 'hybrid',
+      layers: [
+        {
+          id: 'input',
+          level: 0,
+          capabilities: [],
+          processingMode: 'parallel',
+          connectionPattern: 'dense',
+          activationFunction: 'linear'
+        },
+        {
+          id: 'processing_network',
+          level: 1,
+          capabilities: [],
+          processingMode: 'adaptive',
+          connectionPattern: 'dense',
+          activationFunction: 'tanh'
+        },
+        {
+          id: 'processing_hierarchical',
+          level: 2,
+          capabilities: [],
+          processingMode: 'sequential',
+          connectionPattern: 'selective',
+          activationFunction: 'sigmoid'
+        },
+        {
+          id: 'output',
+          level: 3,
+          capabilities: [],
+          processingMode: 'parallel',
+          connectionPattern: 'sparse',
+          activationFunction: 'linear'
+        }
+      ],
+      connections: {
+        nodes: new Map(),
+        edges: new Map(),
+        weights: new Map(),
+        adaptiveWeights: true,
+        learningRate: 0.15
+      },
+      emergentProperties: [],
+      adaptationHistory: []
+    });
   }
 
   private initializeOptimizationStrategies(): void {
@@ -678,6 +727,8 @@ export class MorphologyManager {
       this.distributeCapabilitiesNetworked(structure, capabilities);
     } else if (template.type === 'modular') {
       this.distributeCapabilitiesModularly(structure, capabilities);
+    } else if (template.type === 'hybrid') {
+      this.distributeCapabilitiesHybrid(structure, capabilities);
     }
     
     return structure;
@@ -722,6 +773,28 @@ export class MorphologyManager {
         connectionPattern: 'sparse',
         activationFunction: 'linear'
       });
+    });
+  }
+
+  private distributeCapabilitiesHybrid(structure: any, capabilities: AgentCapability[]): void {
+    // Distribute capabilities across hybrid structure layers
+    // Input layer gets all capabilities for parallel processing
+    structure.layers[0].capabilities = capabilities.map(cap => cap.id);
+    
+    // Processing layers get capabilities based on their properties
+    capabilities.forEach((cap, index) => {
+      // Network processing layer for highly connected capabilities
+      if (cap.strength > 0.7) {
+        structure.layers[1].capabilities.push(cap.id);
+      }
+      
+      // Hierarchical processing layer for specialized capabilities
+      if (cap.specialization.length > 1) {
+        structure.layers[2].capabilities.push(cap.id);
+      }
+      
+      // Output layer gets all capabilities
+      structure.layers[3].capabilities.push(cap.id);
     });
   }
 
