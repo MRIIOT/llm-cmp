@@ -195,32 +195,39 @@ export class BayesianNetwork {
    * Construct network from evidence patterns
    */
   constructFromEvidence(evidenceSet: Evidence[]): void {
-    // Analyze evidence patterns to build network structure
-    const nodeIds = new Set<string>();
+    // Build network structure from evidence topics and relationships
+    const topicNodes = new Map<string, Set<string>>();
+    const sourceNodes = new Set<string>();
     const relationships = new Map<string, Set<string>>();
     
-    // Extract entities and relationships from evidence
+    // Extract topics and sources from evidence
     for (const evidence of evidenceSet) {
-      const entities = this.extractEntities(evidence);
-      entities.forEach(entity => nodeIds.add(entity));
-      
-      // Infer relationships based on co-occurrence
-      for (let i = 0; i < entities.length; i++) {
-        for (let j = i + 1; j < entities.length; j++) {
-          const key = `${entities[i]}-${entities[j]}`;
-          if (!relationships.has(key)) {
-            relationships.set(key, new Set());
-          }
-          relationships.get(key)!.add(evidence.source);
+      // Create nodes for topics if they exist
+      if (evidence.topic) {
+        if (!topicNodes.has(evidence.topic)) {
+          topicNodes.set(evidence.topic, new Set());
         }
+        topicNodes.get(evidence.topic)!.add(evidence.source);
       }
+      
+      // Track sources
+      sourceNodes.add(evidence.source);
+      
+      // Extract any additional entities from content
+      const entities = this.extractEntities(evidence);
+      entities.forEach(entity => {
+        if (!topicNodes.has(entity)) {
+          topicNodes.set(entity, new Set());
+        }
+        topicNodes.get(entity)!.add(evidence.source);
+      });
     }
     
-    // Create nodes for entities
-    for (const nodeId of nodeIds) {
+    // Create nodes for topics
+    for (const [topicId, sources] of topicNodes.entries()) {
       this.addNode({
-        id: nodeId,
-        name: nodeId,
+        id: topicId,
+        name: topicId,
         states: ['true', 'false'],
         probabilities: new Map([['true', 0.5], ['false', 0.5]]),
         parents: [],
@@ -228,9 +235,41 @@ export class BayesianNetwork {
       });
     }
     
+    // Create nodes for sources (if needed for network structure)
+    for (const sourceId of sourceNodes) {
+      if (!this.nodes.has(sourceId)) {
+        this.addNode({
+          id: sourceId,
+          name: sourceId,
+          states: ['reliable', 'unreliable'],
+          probabilities: new Map([['reliable', 0.7], ['unreliable', 0.3]]),
+          parents: [],
+          children: []
+        });
+      }
+    }
+    
+    // Infer relationships based on shared sources or co-occurrence
+    const topicList = Array.from(topicNodes.keys());
+    for (let i = 0; i < topicList.length; i++) {
+      for (let j = i + 1; j < topicList.length; j++) {
+        const topic1 = topicList[i];
+        const topic2 = topicList[j];
+        const sources1 = topicNodes.get(topic1)!;
+        const sources2 = topicNodes.get(topic2)!;
+        
+        // Check for shared sources
+        const sharedSources = Array.from(sources1).filter(s => sources2.has(s));
+        if (sharedSources.length > 0) {
+          const key = `${topic1}-${topic2}`;
+          relationships.set(key, new Set(sharedSources));
+        }
+      }
+    }
+    
     // Add edges based on relationship strength
     for (const [relationship, sources] of relationships.entries()) {
-      if (sources.size >= 2) { // Require multiple sources
+      if (sources.size >= 1) { // Even single source can establish relationship
         const [parent, child] = relationship.split('-');
         if (!this.wouldCreateCycle(parent, child)) {
           this.addEdge(parent, child);
@@ -243,19 +282,63 @@ export class BayesianNetwork {
    * Extract entities from evidence
    */
   private extractEntities(evidence: Evidence): string[] {
-    // Simplified entity extraction - in production would use NLP
+    // Generic entity extraction based on content analysis
     const entities: string[] = [];
-    const words = evidence.content.toLowerCase().split(/\s+/);
+    const content = evidence.content.toLowerCase();
     
-    // Look for key terms (simplified for example)
-    const keyTerms = ['agent', 'consensus', 'evidence', 'belief', 'confidence'];
+    // Extract potential entities using various patterns
+    
+    // 1. Extract capitalized words (potential proper nouns)
+    const capitalizedWords = evidence.content.match(/\b[A-Z][a-z]+\b/g) || [];
+    entities.push(...capitalizedWords.map(w => w.toLowerCase()));
+    
+    // 2. Extract quoted terms
+    const quotedTerms = content.match(/"([^"]+)"/g) || [];
+    entities.push(...quotedTerms.map(t => t.replace(/"/g, '')));
+    
+    // 3. Extract key phrases based on common patterns
+    const keyPatterns = [
+      /\b(\w+)\s+(is|are|was|were)\s+(\w+)/g,  // "X is Y" patterns
+      /\b(\w+)\s+(indicates?|shows?|suggests?)\s+/g,  // indicator patterns
+      /\b(positive|negative|bullish|bearish|high|low|increasing|decreasing)\b/g,  // sentiment/direction
+    ];
+    
+    for (const pattern of keyPatterns) {
+      const matches = content.match(pattern) || [];
+      entities.push(...matches);
+    }
+    
+    // 4. Extract domain-specific terms if they appear multiple times
+    const words = content.split(/\s+/);
+    const wordFreq = new Map<string, number>();
     for (const word of words) {
-      if (keyTerms.some(term => word.includes(term))) {
+      const cleaned = word.replace(/[^\w]/g, '').toLowerCase();
+      if (cleaned.length > 3) {  // Skip short words
+        wordFreq.set(cleaned, (wordFreq.get(cleaned) || 0) + 1);
+      }
+    }
+    
+    // Add words that appear multiple times or are notably long
+    for (const [word, freq] of wordFreq.entries()) {
+      if (freq > 1 || word.length > 7) {
         entities.push(word);
       }
     }
     
-    return entities;
+    // 5. If topic is specified, include related terms
+    if (evidence.topic) {
+      entities.push(evidence.topic);
+      // Add variations of the topic
+      const topicWords = evidence.topic.split(/[_\s-]+/);
+      entities.push(...topicWords);
+    }
+    
+    // Remove duplicates and filter out common words
+    const commonWords = new Set(['the', 'is', 'are', 'was', 'were', 'and', 'or', 'but', 'for', 'with']);
+    const uniqueEntities = Array.from(new Set(entities))
+      .filter(e => e.length > 2 && !commonWords.has(e));
+    
+    return uniqueEntities;
   }
   
   /**

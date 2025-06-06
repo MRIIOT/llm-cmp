@@ -571,7 +571,7 @@ export class TemporalPoolerTests {
             // Debug: check how many columns are active
             const activeCount = sdr.filter(x => x).length;
             if (i === 0) {
-                console.log(`      First pattern in sequence: ${activeCount} active columns`);
+                //console.log(`      First pattern in sequence: ${activeCount} active columns`);
             }
             
             const state = this.temporalPooler.compute(sdr, learn);
@@ -584,7 +584,7 @@ export class TemporalPoolerTests {
                 this.temporalPooler.compute(firstSdr, learn);
                 
                 const metrics = this.temporalPooler.getLearningMetrics();
-                console.log(`      After sequence (with wrap-around): ${metrics.totalSegments} segments`);
+                //console.log(`      After sequence (with wrap-around): ${metrics.totalSegments} segments`);
             }
         }
     }

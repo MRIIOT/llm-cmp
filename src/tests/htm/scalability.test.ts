@@ -565,7 +565,7 @@ export class ScalabilityTests {
         
         // Now disable spatial pooler learning for consistent SDRs
         // PHASE 1: Training with multiple epochs (like working basic tests)
-        console.log(`    Training phase: ${sequences.length} sequences for 3 epochs...`);
+        //console.log(`    Training phase: ${sequences.length} sequences for 3 epochs...`);
         //console.log(`    DEBUG: About to start training loops...`);
         
         for (let epoch = 0; epoch < 3; epoch++) {
@@ -593,7 +593,7 @@ export class ScalabilityTests {
                     
                     // DEBUG: Add winner cell tracking for first few sequences and positions (same as testing phase)
                     if (epoch === 0 && seqIdx < 3 && i < 3) {
-                        console.log(`        Training seq ${seqIdx + 1}, pos ${i}: ${state.winnerCells.size} winner cells, ${state.activeCells.size} active cells`);
+                        //console.log(`        Training seq ${seqIdx + 1}, pos ${i}: ${state.winnerCells.size} winner cells, ${state.activeCells.size} active cells`);
                         
                         // DEBUG: Show actual winner cell IDs to compare with testing phase
                         if (state.winnerCells && state.winnerCells.size > 0) {
@@ -664,7 +664,7 @@ export class ScalabilityTests {
                 // Debug: Check learning metrics after first sequence
                 if (epoch === 2 && seqIdx === 0) {
                     const metrics = this.temporalPooler.getLearningMetrics();
-                    console.log(`      After training seq 1: ${metrics.totalSegments} segments, ${metrics.avgSynapsesPerSegment.toFixed(1)} avg synapses/segment`);
+                    //console.log(`      After training seq 1: ${metrics.totalSegments} segments, ${metrics.avgSynapsesPerSegment.toFixed(1)} avg synapses/segment`);
                 }
             }
         }
