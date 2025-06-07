@@ -11,6 +11,7 @@ import {
   MessageMetadata,
   ReasoningChain,
   ReasoningStep,
+  ReasoningType,
   Evidence,
   ConfidenceInterval,
   BayesianBelief,
@@ -652,6 +653,13 @@ export class Agent {
   }
 
   private initializeHTM(): void {
+    // Debug log HTM configuration
+    console.log(`[Agent] Initializing HTM with config:`, {
+      columnCount: this.config.htm.columnCount,
+      cellsPerColumn: this.config.htm.cellsPerColumn,
+      totalCells: this.config.htm.columnCount * this.config.htm.cellsPerColumn
+    });
+    
     this.htmRegion = new HTMRegion({
       name: `htm_${this.id}`,
       numColumns: this.config.htm.columnCount,
@@ -840,45 +848,91 @@ export class Agent {
     previousSteps: ReasoningStep[]
   ): string {
     const previousContext = previousSteps.length > 0
-      ? `\n\nPrevious reasoning:\n${previousSteps.map(s => `- ${s.content}`).join('\n')}`
+      ? `\n\nPrevious reasoning steps:\n${previousSteps.map(s => 
+          `- [${s.type.toUpperCase()}:${s.concept}] ${s.content}`
+        ).join('\n')}`
       : '';
     
-    return `As an agent with ${capability.name} capability, analyze the following query:
+    return `You are a specialized reasoning agent with ${capability.name} capability.
 
-Query: ${query}
+QUERY: ${query}
 
-Context: ${JSON.stringify(context, null, 2)}
+CONTEXT: ${JSON.stringify(context, null, 2)}
 ${previousContext}
 
-Provide a detailed reasoning response focusing on ${capability.specializations.join(', ')}. 
-Structure your response as clear reasoning steps.`;
+INSTRUCTIONS:
+Generate reasoning steps in this EXACT format. Each line must follow this pattern:
+
+[TYPE:CONCEPT] reasoning content here
+
+Where:
+- TYPE is one of: OBSERVATION, INFERENCE, DEDUCTION, ANALYSIS, PREDICTION, HYPOTHESIS, CONCLUSION
+- CONCEPT is a short descriptor (1-3 words, use underscores for spaces)
+
+EXAMPLES:
+[OBSERVATION:market_trends] Current market data shows increasing volatility in tech stocks
+[INFERENCE:risk_assessment] Based on the volatility, institutional investors may reduce positions
+[DEDUCTION:price_impact] Therefore, we can expect downward pressure on prices
+[ANALYSIS:correlation_pattern] The correlation between volatility and institutional selling is historically strong
+
+IMPORTANT:
+- Each reasoning step MUST start with [TYPE:CONCEPT]
+- Keep concepts descriptive but concise
+- Build upon previous steps when relevant
+- Focus your analysis on: ${capability.specializations.join(', ')}
+
+Begin your reasoning:`;
   }
 
   private getSystemPrompt(capability: AgentCapability): string {
-    return `You are a  reasoning agent with specialized capability in ${capability.name}. 
-Your specializations include: ${capability.specializations.join(', ')}.
-Provide clear, logical reasoning with explicit confidence levels.`;
+    return `You are an expert reasoning agent specialized in ${capability.name}.
+
+Your core competencies: ${capability.specializations.join(', ')}
+
+CRITICAL FORMATTING RULES:
+1. Every reasoning step must begin with [TYPE:CONCEPT] format
+2. Types: OBSERVATION, INFERENCE, DEDUCTION, ANALYSIS, PREDICTION, HYPOTHESIS, CONCLUSION
+3. Concepts should be 1-3 words, descriptive, using underscores for spaces
+4. One reasoning step per line
+5. Build logical connections between steps
+
+You excel at structured, logical thinking and always follow the specified format precisely.`;
   }
 
   private parseReasoningSteps(content: string, capability: AgentCapability): ReasoningStep[] {
-    // Parse LLM response into reasoning steps
-    const lines = content.split('\n').filter(line => line.trim());
     const steps: ReasoningStep[] = [];
+    const lines = content.split('\n').filter(line => line.trim());
+    
+    // Regex to match [TYPE:CONCEPT] format
+    const stepPattern = /^\[([A-Z_]+):([^\]]+)\]\s*(.+)$/;
     
     lines.forEach((line, index) => {
-      if (line.trim()) {
+      const match = line.match(stepPattern);
+      
+      if (match) {
+        const [_, type, concept, reasoning] = match;
+        
+        steps.push({
+          id: this.generateId('step'),
+          type: this.normalizeType(type),
+          content: reasoning.trim(),
+          concept: this.normalizeConcept(concept),
+          confidence: this.calculateStepConfidence(reasoning, type, steps),
+          supporting: this.findSupportingSteps(reasoning, concept, steps),
+          refuting: this.findRefutingSteps(reasoning, concept, steps)
+        });
+      } else {
+        // Fallback for non-conforming lines
+        console.warn(`Line doesn't match expected format: ${line}`);
+        
+        // Try to salvage what we can
         steps.push({
           id: this.generateId('step'),
           type: this.inferReasoningType(line, capability),
           content: line,
-          concept: this.extractConcept(line),
-          confidence: {
-            mean: 0.8 - (index * 0.05), // Decreasing confidence
-            lower: 0.7 - (index * 0.05),
-            upper: 0.9 - (index * 0.05),
-            method: 'normal'
-          },
-          supporting: index > 0 ? [steps[index - 1].id] : [],
+          concept: this.extractFallbackConcept(line),
+          confidence: { mean: 0.5, lower: 0.4, upper: 0.6, method: 'normal' },
+          supporting: [],
           refuting: []
         });
       }
@@ -900,6 +954,222 @@ Provide clear, logical reasoning with explicit confidence levels.`;
     // Extract key concept from content
     const words = content.split(' ').filter(w => w.length > 4);
     return words[0] || 'concept';
+  }
+
+  private normalizeType(type: string): ReasoningType {
+    const typeMap: Record<string, ReasoningType> = {
+      'OBSERVATION': 'observation',
+      'INFERENCE': 'inference',
+      'DEDUCTION': 'deduction',
+      'ANALYSIS': 'analogy',  // Map ANALYSIS to analogy
+      'PREDICTION': 'prediction',
+      'HYPOTHESIS': 'abduction',  // Map HYPOTHESIS to abduction
+      'CONCLUSION': 'synthesis'  // Map CONCLUSION to synthesis
+    };
+    
+    return typeMap[type.toUpperCase()] || 'inference';
+  }
+
+  private normalizeConcept(concept: string): string {
+    return concept
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '_')
+      .replace(/[^a-z0-9_]/g, '')
+      .substring(0, 50); // limit length
+  }
+
+  private calculateStepConfidence(
+    content: string,
+    type: string,
+    previousSteps: ReasoningStep[]
+  ): ConfidenceInterval {
+    let baseConfidence = 0.75;
+    
+    // Type-based confidence adjustments
+    const typeConfidence: Record<string, number> = {
+      'observation': 0.85,    // Direct observations are high confidence
+      'deduction': 0.80,      // Logical deductions are fairly confident
+      'synthesis': 0.80,      // Conclusions/synthesis from evidence
+      'analogy': 0.75,        // Analysis involves interpretation
+      'inference': 0.70,      // Inferences have more uncertainty
+      'prediction': 0.65,     // Predictions are inherently uncertain
+      'abduction': 0.60,      // Hypotheses are most uncertain
+      'induction': 0.70,      // Inductive reasoning
+      'critique': 0.75        // Critical evaluation
+    };
+    
+    baseConfidence = typeConfidence[this.normalizeType(type)] || 0.70;
+    
+    // Content-based adjustments
+    const uncertaintyMarkers = [
+      { pattern: /\b(might|may|possibly|perhaps)\b/i, penalty: 0.15 },
+      { pattern: /\b(could|potentially|likely)\b/i, penalty: 0.10 },
+      { pattern: /\b(probably|seems|appears)\b/i, penalty: 0.05 }
+    ];
+    
+    const certaintyMarkers = [
+      { pattern: /\b(definitely|certainly|clearly)\b/i, bonus: 0.10 },
+      { pattern: /\b(must|will|always)\b/i, bonus: 0.08 },
+      { pattern: /\b(evidence shows|data indicates)\b/i, bonus: 0.12 }
+    ];
+    
+    uncertaintyMarkers.forEach(marker => {
+      if (marker.pattern.test(content)) {
+        baseConfidence -= marker.penalty;
+      }
+    });
+    
+    certaintyMarkers.forEach(marker => {
+      if (marker.pattern.test(content)) {
+        baseConfidence += marker.bonus;
+      }
+    });
+    
+    // Support from previous steps
+    const supportBonus = previousSteps.filter(step => 
+      content.toLowerCase().includes(step.concept.replace(/_/g, ' '))
+    ).length * 0.02;
+    
+    baseConfidence = Math.max(0.1, Math.min(0.95, baseConfidence + supportBonus));
+    
+    return {
+      mean: baseConfidence,
+      lower: Math.max(0, baseConfidence - 0.15),
+      upper: Math.min(1, baseConfidence + 0.15),
+      method: 'normal'
+    };
+  }
+
+  private findSupportingSteps(
+    content: string,
+    concept: string,
+    previousSteps: ReasoningStep[]
+  ): string[] {
+    const supporting: string[] = [];
+    const contentLower = content.toLowerCase();
+    
+    // Logical connectors that indicate support
+    const supportIndicators = [
+      'therefore', 'thus', 'hence', 'consequently',
+      'as a result', 'because of', 'due to', 'based on',
+      'following from', 'given that', 'since', 'as'
+    ];
+    
+    previousSteps.forEach(step => {
+      // Direct concept reference
+      if (contentLower.includes(step.concept.replace(/_/g, ' '))) {
+        supporting.push(step.id);
+        return;
+      }
+      
+      // Logical connection indicators
+      for (const indicator of supportIndicators) {
+        if (contentLower.includes(indicator)) {
+          // Check if this step is referenced near the indicator
+          const indicatorIndex = contentLower.indexOf(indicator);
+          const contextWindow = contentLower.substring(
+            Math.max(0, indicatorIndex - 50),
+            indicatorIndex + 50
+          );
+          
+          if (contextWindow.includes(step.concept.replace(/_/g, ' '))) {
+            supporting.push(step.id);
+            break;
+          }
+        }
+      }
+    });
+    
+    // If no explicit support found but concepts are related
+    if (supporting.length === 0 && previousSteps.length > 0) {
+      const lastStep = previousSteps[previousSteps.length - 1];
+      const conceptWords = concept.split('_');
+      const lastConceptWords = lastStep.concept.split('_');
+      
+      // Check for concept similarity
+      const overlap = conceptWords.filter(w => 
+        lastConceptWords.includes(w)
+      ).length;
+      
+      if (overlap > 0) {
+        supporting.push(lastStep.id);
+      }
+    }
+    
+    return supporting;
+  }
+
+  private findRefutingSteps(
+    content: string,
+    concept: string,
+    previousSteps: ReasoningStep[]
+  ): string[] {
+    const refuting: string[] = [];
+    const contentLower = content.toLowerCase();
+    
+    // Contradiction indicators
+    const contradictionIndicators = [
+      'however', 'but', 'although', 'despite',
+      'contrary to', 'in contrast', 'nevertheless',
+      'on the other hand', 'alternatively', 'yet'
+    ];
+    
+    previousSteps.forEach(step => {
+      for (const indicator of contradictionIndicators) {
+        if (contentLower.includes(indicator)) {
+          const indicatorIndex = contentLower.indexOf(indicator);
+          const contextWindow = contentLower.substring(
+            Math.max(0, indicatorIndex - 50),
+            indicatorIndex + 50
+          );
+          
+          if (contextWindow.includes(step.concept.replace(/_/g, ' '))) {
+            refuting.push(step.id);
+            break;
+          }
+        }
+      }
+    });
+    
+    return refuting;
+  }
+
+  private extractFallbackConcept(content: string): string {
+    // Remove common starting words
+    const cleaned = content
+      .toLowerCase()
+      .replace(/^(the|a|an|this|that|these|those|it|we|i|you)\s+/i, '');
+    
+    // Extract potential concept words (nouns and noun phrases)
+    const words = cleaned.split(/\s+/).filter(w => w.length > 3);
+    
+    // Look for noun indicators
+    const nounPatterns = [
+      /.*tion$/, /.*ment$/, /.*ness$/, /.*ity$/, 
+      /.*ence$/, /.*ance$/, /.*ship$/, /.*ism$/
+    ];
+    
+    const nouns = words.filter(word => 
+      nounPatterns.some(pattern => pattern.test(word))
+    );
+    
+    if (nouns.length > 0) {
+      return nouns[0];
+    }
+    
+    // Find the first verb (often indicates the action/concept)
+    const verbIndicators = ['ing', 'ed', 'es'];
+    const verbs = words.filter(word => 
+      verbIndicators.some(ending => word.endsWith(ending))
+    );
+    
+    if (verbs.length > 0) {
+      return verbs[0].replace(/ing$|ed$|es$/, '');
+    }
+    
+    // Last resort: longest word
+    return words.sort((a, b) => b.length - a.length)[0] || 'unknown';
   }
 
   private analyzeLogicalStructure(steps: ReasoningStep[]): any {

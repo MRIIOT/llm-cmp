@@ -1,96 +1,96 @@
-# Current Task: Fix TypeScript Build Errors ✅ **COMPLETED**
+# Fix Concept Extraction in Reasoning Steps
 
-## Task Summary
-Fix TypeScript build errors across files in the project - ALL ERRORS RESOLVED!
+## Problem
+The `extractConcept` method in `agent.ts` was extracting meaningless words like "Okay," instead of actual semantic concepts from reasoning steps.
 
-## Final Results
-- Started with 42 errors across 7 files
-- Systematically fixed all errors in 5 phases
-- All TypeScript build errors have been resolved
+## Implementation Progress
 
-## Error Analysis by File (0 errors remaining)
+### Phase 1: Update Reasoning Prompt Structure ✅
+**Status: COMPLETE**
 
-## Implementation Plan ✅ **ALL PHASES COMPLETED**
+Updated `buildReasoningPrompt` method to:
+- Request structured format: `[TYPE:CONCEPT] reasoning content`
+- Provide clear examples and instructions
+- Show how to build on previous steps
 
-### Phase 1: Fix Error Handling (All 'unknown' error types)
-- [✅] Fix error handling in adapter-demo.ts
-- [✅] Fix error handling in base-llm-adapter.ts  
-- [✅] Fix error handling in lmstudio-adapter.ts
-- [✅] Fix error handling in orchestrator.ts
-- [✅] Fix error handling in agent.ts
+Updated `getSystemPrompt` method to:
+- Reinforce the formatting rules
+- List valid reasoning types
+- Emphasize structured thinking
 
-### Phase 2: Fix Type Configuration Issues ✅ **COMPLETED**
-- [✅] Fix LMStudioConfig missing apiKey in adapter-demo.ts
-- [✅] Fix headers type issues in openai-adapter.ts
-- [✅] Fix AgentCapability type mismatch in agent.ts
-- [✅] Fix config type issues in week3-demo.ts
+Created test file: `src/tests/test-structured-prompts.ts`
 
-### Phase 3: Fix Property Initialization (agent.ts) ✅ **COMPLETED**
-- [✅] Initialize HTM-related properties
-- [✅] Initialize Bayesian network properties
-- [✅] Fix method name mismatches
-- [✅] Fix HTM type issues
-- [✅] Fix config property mismatches
+### Phase 2: Update Parser Implementation ✅
+**Status: COMPLETE**
 
-### Phase 4: Fix Remaining Type Issues ✅ **COMPLETED**
-- [✅] Fix remaining agent.ts type issues
-- [✅] Fix index type issue with 'beliefs' in orchestrator.ts
-- [✅] Fix index signature issues in orchestrator.ts
+Updated `parseReasoningSteps` to:
+- Use regex pattern `/^\[([A-Z_]+):([^\]]+)\]\s*(.+)$/` to match structured format
+- Extract type, concept, and content separately
+- Handle non-conforming lines gracefully with fallback
+- Normalize types and concepts
 
-### Phase 5: Fix Module System Issues ✅ **COMPLETED**
-- [✅] Address import.meta usage (commented out for now - requires ES module configuration)
+Added helper methods:
+- `normalizeType`: Maps prompt types to ReasoningType enum values
+- `normalizeConcept`: Cleans and formats concepts (lowercase, underscores)
+- `extractFallbackConcept`: Handles non-structured responses
 
-## Test Checkpoints
+### Phase 3: Enhanced Confidence & Relationships ✅
+**Status: COMPLETE**
 
-1. After Phase 1: Run `npm run build` to verify error handling fixes ✅ **COMPLETED - 7 errors fixed**
-2. After Phase 2: Run `npm run build` to verify type configuration fixes ✅ **COMPLETED - 10 errors fixed**
-3. After Phase 3: Run `npm run build` to verify agent.ts fixes ✅ **COMPLETED - 16 errors fixed**
-4. After Phase 4: Run `npm run build` to verify all type issues resolved ✅ **COMPLETED - 7 errors fixed**
-5. After Phase 5: Full build and test ⚠️ **READY FOR FINAL TEST**
+Implemented:
+- **Type-based confidence scoring**: Different base confidence for each reasoning type
+  - Observations: 0.85 (high confidence)
+  - Deductions: 0.80
+  - Inferences: 0.70
+  - Predictions: 0.65 (lowest confidence)
+- **Content-based adjustments**: Detect uncertainty/certainty markers in text
+- **Smart relationship detection**: 
+  - `findSupportingSteps`: Detects logical connectors (therefore, because, etc.)
+  - `findRefutingSteps`: Detects contradictions (however, despite, etc.)
 
-## Phase 1 Completion Summary
-All error handling issues have been fixed by properly typing errors in catch blocks:
-- Used `error instanceof Error ? error.message : String(error)` pattern
-- Fixed undefined guard in base-llm-adapter.ts cache deletion
-- All 'unknown' error type issues resolved
+### Phase 4: Testing & Validation ✅
+**Status: COMPLETE**
 
-## Phase 2 Completion Summary
-All type configuration issues have been fixed:
-- Added dummy apiKey to LMStudioConfig in adapter-demo.ts (since LM Studio doesn't require it)
-- Fixed headers type to Record<string, string> in openai-adapter.ts
-- Removed delete operation and restructured headers object for Azure
-- Mapped AgentCapability 'specializations' to 'specialization' for AdaptiveAgent compatibility
-- Added missing config properties (baseCapabilities, timeoutMs, minParticipants) in week3-demo.ts
-- Fixed implicit 'any' types in forEach callbacks
+Test results show:
+- ✅ LLM responds with correct structured format
+- ✅ Parser correctly extracts concepts (e.g., "quantum_computing", "encryption_vulnerability")
+- ✅ No more "Okay," type concepts
+- ✅ Confidence scores vary by reasoning type
+- ✅ Fallback handling for malformed responses
 
-## Phase 3 Completion Summary
-Fixed most property initialization issues in agent.ts (16 errors resolved):
-- Used definite assignment assertion (!) for HTM and Bayesian properties that are initialized in init methods
-- Fixed HTMRegionConfig to use correct property names (numColumns, name, etc.)
-- Fixed SequenceMemoryConfig to use maxEpisodes instead of maxSequences
-- Replaced missing BayesianNetwork methods (hasNode → getNode, getNodes → getAllNodes)
-- Created proper BayesianNode objects when adding nodes
-- Added extractNetworkEdges method to extract edges from nodes
-- Fixed HTMRegionOutput handling (it's an object, not iterable)
-- Created extractPatternFromArray method for boolean array patterns
-- Fixed implicit 'any' type in filter callback
+## Test Output Example
 
-## Phase 4 Completion Summary
-Fixed remaining type issues (7 errors resolved):
-- Fixed temporal context update to pass correct parameters (array instead of object)
-- Fixed HTMState type mismatch by converting boolean[] to number[] (indices of true values)
-- Fixed SpatialPoolerConfig property names (synPermActiveInc instead of permanenceIncrement)
-- Fixed 'beliefs' access in orchestrator.ts by removing it
-- Fixed index signature issues by using Record<string, string[]> type
+```
+Step 1:
+  Type: observation
+  Concept: quantum_computing
+  Content: Quantum computing represents a fundamental shift...
+  Confidence: 0.85
 
-## Phase 5 Completion Summary
-Fixed module system issues (2 errors resolved):
-- Commented out import.meta usage in adapter-demo.ts and week3-demo.ts
-- These lines are only used for running demos directly and require ES module configuration in tsconfig
+Step 2:
+  Type: analogy
+  Concept: encryption_vulnerability
+  Content: Current RSA and ECC encryption methods rely on...
+  Confidence: 0.75
+```
 
-## Notes
-- Will maintain buildable state throughout
-- Will fix errors systematically by category to avoid introducing new issues
-- All phases complete!
-- Total errors reduced from 42 → 35 → 25 → 9 → 0 (expected)
-- The project should now build successfully
+## Success Criteria
+
+- [x] Updated prompts to request structured format
+- [x] Parser correctly extracts concepts from structured format
+- [x] Fallback handling for non-structured responses
+- [x] No more "Okay," as concepts
+- [x] Meaningful concept extraction
+- [x] Better confidence scoring based on type and content
+- [x] Proper relationship tracking between steps
+- [x] Tests pass for common patterns
+
+## Solution Summary
+
+The fix involved:
+1. **Structured Output**: Making LLMs output `[TYPE:CONCEPT]` format explicitly
+2. **Robust Parsing**: Regex-based extraction with proper fallbacks
+3. **Smart Confidence**: Type-based baseline with content analysis
+4. **Relationship Tracking**: Detecting logical connections between steps
+
+This approach is **domain-agnostic** and works for any subject matter, as the LLM provides appropriate concepts directly rather than relying on extraction heuristics.

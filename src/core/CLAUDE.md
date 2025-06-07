@@ -321,6 +321,308 @@ The integration creates a system that combines:
 3. **Adaptive Stability**: Fast learning with long-term memory
 4. **Hierarchical Understanding**: From features to episodes
 
+## Agent Integration Layer
+
+### Overview
+
+The Agent implementation (`agent.ts`) serves as the orchestration layer that coordinates HTM, Temporal Processing, and Bayesian reasoning into a unified cognitive architecture. Each agent maintains its own HTM region, temporal context, and belief network, creating a distributed yet cohesive intelligence system.
+
+### Agent Architecture
+
+```typescript
+class Agent {
+  // Core identity and capabilities
+  private capabilities: Map<string, AgentCapability>
+  private morphology: AgentMorphology
+  
+  // Neural subsystems
+  private htmRegion: HTMRegion
+  private temporalContext: TemporalContextManager
+  private sequenceMemory: SequenceMemory
+  
+  // Reasoning systems
+  private bayesianNetwork: BayesianNetwork
+  private inferenceEngine: InferenceEngine
+  
+  // Adaptive mechanisms
+  private adaptiveCore: AdaptiveAgent
+}
+```
+
+### HTM Integration in Agents
+
+#### Query Encoding Pipeline
+
+Agents encode incoming queries into sparse distributed representations for HTM processing:
+
+```typescript
+// 1. Text to SDR encoding
+private encodeForHTM(text: string): boolean[] {
+  const encoding = new Array(2048).fill(false);
+  const hash = this.hashString(text);
+  
+  // Generate sparse activation (~10% sparsity)
+  for (let i = 0; i < 200; i++) {
+    const index = (hash + i * 37) % encoding.length;
+    encoding[index] = true;
+  }
+  
+  return encoding;
+}
+
+// 2. HTM computation
+const htmOutput = this.htmRegion.compute(encoding, learningEnabled);
+
+// 3. Extract state information
+this.currentHTMState = {
+  activeColumns: activeColumnIndices,
+  predictedColumns: predictedColumnIndices,
+  anomalyScore: output.predictionAccuracy,
+  sequenceId: this.generateSequenceId()
+};
+```
+
+#### Pattern Recognition Flow
+
+The agent leverages HTM's pattern recognition capabilities:
+
+1. **Spatial Pooling**: Converts input encoding to stable column representations
+2. **Temporal Pooling**: Identifies sequences and makes predictions
+3. **Anomaly Detection**: Uses bursting columns to detect unexpected inputs
+4. **Pattern Extraction**: Converts active columns to reusable pattern identifiers
+
+### Temporal Processing Integration
+
+#### Context Management Pipeline
+
+```typescript
+private async updateTemporalContext(query: string): Promise<TemporalContext> {
+  // 1. Process through HTM
+  const htmOutput = this.htmRegion.compute(encoding);
+  
+  // 2. Create context pattern from query characteristics
+  const contextPattern = new Array(50).fill(0);
+  for (let i = 0; i < Math.min(query.length, 50); i++) {
+    contextPattern[i] = query.charCodeAt(i) / 255;
+  }
+  
+  // 3. Update temporal context
+  this.temporalContext.updateContext(contextPattern, Date.now());
+  
+  // 4. Build comprehensive temporal state
+  return {
+    currentPattern: this.extractPattern(htmOutput.activeColumns),
+    patternHistory: this.getRecentPatterns(),
+    predictions: await this.getTemporalPredictions(),
+    stability: htmOutput.stability
+  };
+}
+```
+
+#### Sequence Learning Coordination
+
+The agent coordinates between HTM's immediate predictions and temporal module's sequence learning:
+
+- **HTM**: Provides cell-level predictions for next timestep
+- **Temporal**: Maintains longer sequence patterns and multi-step predictions
+- **Integration**: Combines both for robust prediction generation
+
+### Bayesian Reasoning Integration
+
+#### Concept Extraction and Network Building
+
+```typescript
+// Extract concepts from reasoning and evidence
+const concepts = this.extractConcepts(reasoning, evidence);
+
+// Build Bayesian network nodes
+for (const concept of concepts) {
+  this.bayesianNetwork.addNode({
+    id: concept,
+    states: ['true', 'false'],
+    probabilities: initialPriors
+  });
+}
+
+// Add edges based on reasoning connections
+reasoning.steps.forEach(step => {
+  step.supporting.forEach(supportId => {
+    this.bayesianNetwork.addEdge(
+      supportStep.concept, 
+      step.concept
+    );
+  });
+});
+```
+
+### Unified Processing Pipeline
+
+The agent orchestrates all subsystems in a coherent processing flow:
+
+```
+Query Input
+    ↓
+Encode for HTM → HTM Processing → Pattern Extraction
+    ↓                                      ↓
+Temporal Context Update ←─────────────────┘
+    ↓
+Reasoning Chain Generation (with LLM)
+    ↓
+Evidence Gathering
+    ↓
+Bayesian Belief Update
+    ↓
+Prediction Generation ← HTM Predictions + Temporal Predictions
+    ↓
+Uncertainty Estimation
+    ↓
+Response Message Creation
+    ↓
+Performance Tracking → Adaptive Updates
+```
+
+### Data Flow Coordination
+
+#### Bottom-Up Processing
+```typescript
+// Raw input → HTM → Temporal → High-level reasoning
+const htmOutput = this.htmRegion.compute(encoding);
+const activation = this.extractActivation(htmOutput);
+this.temporalContext.updateContext(activation, timestamp);
+const reasoning = await this.generateReasoning(query, context);
+```
+
+#### Top-Down Modulation
+```typescript
+// Predictions influence processing
+const predictions = this.combinePredictions(
+  htmOutput.predictions,
+  this.sequenceLearner.generatePredictions()
+);
+// Use predictions to bias future HTM processing
+```
+
+#### Lateral Integration
+```typescript
+// Cross-validation between systems
+const combinedAnomaly = Math.max(
+  htmAnomaly,
+  temporalAnomaly * adaptiveWeight
+);
+```
+
+### Memory System Coordination
+
+The agent manages multiple memory systems:
+
+1. **HTM Memory** (Implicit)
+   - Distributed in synaptic permanences
+   - Accessed through pattern completion
+   - Provides immediate recognition
+
+2. **Sequence Memory** (Explicit)
+   - Stores episodic sequences
+   - Indexed by similarity
+   - Consolidated based on importance
+
+3. **Belief Memory** (Bayesian)
+   - Network structure and CPTs
+   - Evidence accumulation
+   - Uncertainty tracking
+
+### Adaptive Mechanisms
+
+#### Performance-Driven Adaptation
+
+```typescript
+private async adaptIfNecessary(message: Message): Promise<void> {
+  const avgQuality = this.calculateAverageQuality();
+  
+  if (avgQuality < 0.7) {
+    // Trigger structural adaptation
+    await this.adaptiveCore.adaptToTask({
+      taskType: 'quality_improvement',
+      complexity: 0.8,
+      requiredCapabilities: ['analytical', 'synthesis']
+    });
+    
+    // Update morphology
+    this.morphology.structure = 
+      this.adaptiveCore.getSpecializationProfile().morphology;
+  }
+}
+```
+
+#### Capability Selection
+
+The agent dynamically selects capabilities based on:
+- Query content analysis
+- Historical performance
+- Current context
+- Specialization strengths
+
+### Integration Benefits
+
+1. **Complementary Predictions**
+   - HTM: Immediate, high-resolution predictions
+   - Temporal: Longer-term sequence predictions
+   - Bayesian: Uncertainty-aware belief updates
+
+2. **Robust Anomaly Detection**
+   - HTM bursting indicates spatial anomalies
+   - Temporal errors indicate sequence anomalies
+   - Combined scoring provides reliable detection
+
+3. **Adaptive Learning**
+   - HTM learns continuously from patterns
+   - Temporal system adapts to sequences
+   - Bayesian network evolves with evidence
+   - Agent morphology adapts to performance
+
+4. **Rich Context Understanding**
+   - Spatial context from HTM columns
+   - Temporal context across time scales
+   - Semantic context from reasoning
+   - Uncertainty context from Bayesian inference
+
+### Configuration Example
+
+```typescript
+const agentConfig: AgentConfig = {
+  id: 'agent_001',
+  name: 'Analytical Agent',
+  initialCapabilities: [
+    {
+      id: 'reasoning',
+      strength: 0.9,
+      specializations: ['logical', 'analytical']
+    }
+  ],
+  config: {
+    htm: {
+      columnCount: 2048,
+      cellsPerColumn: 16,
+      learningRate: 0.1
+    },
+    bayesian: {
+      priorStrength: 0.1,
+      updatePolicy: 'adaptive'
+    },
+    agents: {
+      adaptationRate: 0.1,
+      evolutionEnabled: true
+    }
+  }
+};
+```
+
+### Performance Characteristics
+
+- **Latency**: ~100-500ms for complete query processing
+- **Memory**: O(columns × cells + patterns + beliefs)
+- **Scalability**: Agents can operate independently in parallel
+- **Adaptability**: Continuous improvement through multiple learning mechanisms
+
 ## Future Integration Opportunities
 
 1. **Attention Mechanisms**: Use temporal predictions to guide HTM focus
@@ -328,3 +630,5 @@ The integration creates a system that combines:
 3. **Meta-Learning**: Use error patterns to adapt learning rates
 4. **Emotional Valence**: Integrate affective signals for importance weighting
 5. **Sensorimotor Integration**: Combine with action selection systems
+6. **Multi-Agent Coordination**: Leverage shared HTM representations for consensus
+7. **Hierarchical Agents**: Create agent hierarchies with specialized roles

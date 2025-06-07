@@ -2,39 +2,119 @@
 
 ## Overview
 
-The LLM-CMP system integrates three major subsystems that work together to create a comprehensive adaptive AI architecture:
+The LLM-CMP (Large Language Model Cognitive Modeling Platform) integrates five major subsystems that work together to create a comprehensive adaptive AI architecture:
 
-1. **Agent Systems** (`/agents`) - Dynamic agent specialization and population evolution
-2. **Core Systems** (`/core`) - HTM neural processing and temporal pattern learning  
-3. **Evidence Systems** (`/evidence`) - Bayesian reasoning and uncertainty quantification
+1. **LLM Adapters** (`/adapters`) - Provider-agnostic interface to multiple LLM services
+2. **Agent Systems** (`/agents`) - Dynamic agent specialization and population evolution
+3. **Core Systems** (`/core`) - HTM neural processing and temporal pattern learning  
+4. **Orchestration** (`/orchestration`) - Multi-agent coordination and consensus building
+5. **Evidence Systems** (`/evidence`) - Bayesian reasoning and uncertainty quantification
 
-This document describes how these systems integrate to form a unified cognitive architecture capable of learning, adapting, reasoning, and evolving.
+This document describes how these systems integrate to form a unified cognitive architecture capable of learning, adapting, reasoning, and evolving through coordinated multi-agent intelligence.
 
 ## System Architecture Hierarchy
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
+│                   Orchestration Layer                        │
+│  • Agent Spawning        • Work Distribution               │
+│  • Consensus Building    • Performance Optimization         │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ Manages
+┌──────────────────────┴──────────────────────────────────────┐
 │                      Agent Layer                             │
 │  • Dynamic Specialization    • Population Evolution         │
 │  • Individual Adaptation     • Genetic Algorithms           │
 └──────────────────────┬──────────────────────────────────────┘
-                       │ Uses/Controls
+                       │ Uses
 ┌──────────────────────┴──────────────────────────────────────┐
 │                      Core Layer                              │
 │  • HTM Spatial/Temporal      • Pattern Recognition          │
 │  • Sequence Learning         • Predictive Processing        │
 └──────────────────────┬──────────────────────────────────────┘
-                       │ Informs/Processes
+                       │ Informs
 ┌──────────────────────┴──────────────────────────────────────┐
 │                    Evidence Layer                            │
 │  • Bayesian Inference        • Belief Networks              │
 │  • Uncertainty Analysis      • Confidence Estimation        │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ Powered by
+┌──────────────────────┴──────────────────────────────────────┐
+│                    Adapter Layer                             │
+│  • Provider Abstraction      • Request/Response Mapping     │
+│  • Retry & Caching          • Cost Optimization            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ## Integration Points
 
-### 1. Agent-Core Integration
+### 1. Adapter-Agent Integration
+
+**LLM Interface Pipeline**:
+- Adapters provide unified interface to multiple LLM providers
+- Agents use adapters for natural language reasoning
+- Provider selection based on agent specialization and task requirements
+
+```typescript
+// Agent using LLM through adapter
+class Agent {
+  private llmAdapter: BaseLLMAdapter;
+  
+  async generateReasoning(query: string): Promise<Reasoning> {
+    const response = await this.llmAdapter.generateCompletion({
+      prompt: this.buildPrompt(query),
+      systemPrompt: this.getSpecializedSystemPrompt(),
+      temperature: this.getOptimalTemperature(),
+      model: this.selectModel()
+    });
+    
+    return this.parseReasoning(response.content);
+  }
+}
+```
+
+**Provider Optimization**:
+- Agents matched to providers based on capabilities
+- Load balancing across multiple providers
+- Fallback handling for provider failures
+- Cost optimization through intelligent routing
+
+### 2. Orchestrator-Agent Integration
+
+**Agent Management Pipeline**:
+- Orchestrator analyzes query complexity
+- Spawns specialized agents based on requirements
+- Distributes work across agent population
+- Builds consensus from agent responses
+
+```typescript
+// Orchestrator managing agents
+class Orchestrator {
+  async orchestrate(request: OrchestrationRequest) {
+    // Analyze complexity
+    const complexity = await this.analyzeRequestComplexity(request);
+    
+    // Spawn/select agents
+    const agents = await this.selectAgents(complexity);
+    
+    // Distribute work
+    const responses = await this.distributeWork(agents, request);
+    
+    // Build consensus
+    const consensus = await this.buildConsensus(responses);
+    
+    return this.synthesizeResponse(consensus);
+  }
+}
+```
+
+**Consensus Mechanisms**:
+- Simple majority for straightforward decisions
+- Weighted voting based on agent expertise
+- Bayesian aggregation for probabilistic consensus
+- Game-theoretic approaches for strategic decisions
+
+### 3. Agent-Core Integration
 
 **Perception and Learning Pipeline**:
 - Agents use HTM for sensory processing and pattern recognition
@@ -63,12 +143,7 @@ class AdaptiveAgent {
 }
 ```
 
-**Learning Coordination**:
-- HTM's online learning provides immediate pattern adaptation
-- Temporal system's episodic memory informs agent specialization
-- Agent performance metrics feed back to tune HTM parameters
-
-### 2. Agent-Evidence Integration
+### 4. Agent-Evidence Integration
 
 **Decision Making Pipeline**:
 - Agents use Bayesian networks for probabilistic reasoning
@@ -97,286 +172,301 @@ class ReasoningAgent {
 }
 ```
 
-**Population-Level Reasoning**:
-- Evidence from multiple agents aggregates for collective decisions
-- Conflict resolution uses agent specialization weights
-- Population diversity maintains epistemic uncertainty coverage
-
-### 3. Core-Evidence Integration
+### 5. Core-Evidence Integration
 
 **Pattern-Based Inference**:
 - HTM pattern recognition provides evidence for Bayesian updates
 - Temporal predictions inform prior probabilities
 - Anomaly detection triggers belief revision
 
-```typescript
-// Core patterns as evidence
-class PatternEvidenceExtractor {
-  extractEvidence(htmOutput: HTMOutput, temporalPrediction: Prediction) {
-    return {
-      spatialPattern: htmOutput.activeColumns,
-      confidence: 1 - htmOutput.anomalyScore,
-      temporalContext: temporalPrediction.context,
-      predictionError: temporalPrediction.error
-    };
-  }
-}
-```
-
 **Uncertainty-Aware Learning**:
 - Epistemic uncertainty guides HTM learning rates
 - Aleatoric uncertainty identifies inherently noisy patterns
 - Sensitivity analysis optimizes HTM connectivity
 
-### 4. Three-System Integration
+### 6. Five-System Integration
 
-**Complete Cognitive Loop**:
+**Complete Cognitive Pipeline**:
 
 ```typescript
 class IntegratedCognitiveSystem {
-  // 1. Perception Phase (Core)
-  async perceive(input: any) {
-    const htmFeatures = this.htm.extractFeatures(input);
-    const temporalContext = this.temporal.updateContext(htmFeatures);
-    return { features: htmFeatures, context: temporalContext };
+  // 1. Request arrives at orchestrator
+  async processRequest(request: Request) {
+    const orchestrator = new Orchestrator({
+      providers: this.adapters,
+      agentTemplates: this.templates
+    });
+    
+    return await orchestrator.orchestrate({
+      query: request.query,
+      context: request.context,
+      constraints: request.constraints
+    });
   }
   
-  // 2. Reasoning Phase (Evidence)
-  async reason(perception: Perception) {
-    const evidence = this.extractEvidence(perception);
-    const beliefs = this.bayesian.updateBeliefs(evidence);
-    const uncertainty = this.uncertainty.quantify(beliefs);
-    return { beliefs, uncertainty };
+  // 2. Orchestrator manages execution
+  async orchestrate(request: OrchestrationRequest) {
+    // Analyze complexity
+    const complexity = await this.analyzeComplexity(request);
+    
+    // Select/spawn agents
+    const agents = await this.selectAgents(complexity);
+    
+    // Agents process in parallel
+    const agentResponses = await Promise.all(
+      agents.map(agent => agent.process(request))
+    );
+    
+    // Build consensus
+    return await this.buildConsensus(agentResponses);
   }
   
-  // 3. Action Phase (Agent)
-  async act(reasoning: Reasoning) {
-    const agent = this.selectAgent(reasoning);
-    const action = agent.selectAction(reasoning);
-    const result = await agent.execute(action);
-    return result;
+  // 3. Individual agent processing
+  async processAgent(request: Request) {
+    // Core processing (HTM/Temporal)
+    const perception = await this.perceive(request.input);
+    
+    // Evidence reasoning (Bayesian/Uncertainty)
+    const reasoning = await this.reason(perception);
+    
+    // LLM reasoning (via Adapter)
+    const llmReasoning = await this.generateReasoning(request.query);
+    
+    // Combine insights
+    return this.synthesize(perception, reasoning, llmReasoning);
   }
   
-  // 4. Adaptation Phase (All Systems)
-  async adapt(result: Result) {
-    // Update HTM based on prediction error
-    this.htm.learn(result.predictionError);
-    
-    // Update temporal sequences
-    this.temporal.updateSequences(result.sequence);
-    
-    // Update Bayesian network
-    this.bayesian.updateStructure(result.evidence);
-    
-    // Adapt agent capabilities
-    this.agent.evolveCapabilities(result.performance);
-    
-    // Evolve population if needed
-    if (this.shouldEvolve()) {
-      this.population.evolveGeneration();
-    }
+  // 4. Adaptation and evolution
+  async adapt(results: Results) {
+    // Update all subsystems based on performance
+    await this.adaptCore(results);
+    await this.adaptEvidence(results);
+    await this.adaptAgents(results);
+    await this.evolvePopulation(results);
+    await this.optimizeOrchestration(results);
   }
 }
 ```
 
 ## Data Flow Patterns
 
-### Bottom-Up Processing
+### Request Processing Flow
 ```
-Sensory Input → HTM Spatial → HTM Temporal → Evidence Extraction → 
-Bayesian Inference → Agent Decision → Action Selection
-```
-
-### Top-Down Modulation
-```
-Agent Goals → Evidence Priorities → HTM Attention → 
-Perceptual Bias → Selective Processing
+Client Request → Orchestrator Analysis → Agent Selection → 
+Parallel Agent Processing → Consensus Building → Response Synthesis
 ```
 
-### Lateral Integration
+### Agent Processing Flow
 ```
-Agent₁ Evidence ↔ Agent₂ Evidence → Collective Belief → 
-Population Consensus → Coordinated Action
+Query → HTM Encoding → Temporal Context → Evidence Extraction → 
+Bayesian Inference → LLM Reasoning → Response Generation
+```
+
+### Learning Flow
+```
+Performance Metrics → Error Analysis → System Adaptation → 
+Parameter Updates → Population Evolution → Strategy Optimization
 ```
 
 ## Emergent Capabilities
 
-### 1. Multi-Scale Intelligence
-- **Micro**: HTM cell-level pattern detection (milliseconds)
-- **Meso**: Temporal sequence learning (seconds to minutes)
-- **Macro**: Agent behavioral adaptation (minutes to hours)
+### 1. Multi-Provider Intelligence
+- **Adapter flexibility**: Switch between providers based on task
+- **Cost optimization**: Route to most economical provider
+- **Capability matching**: Use provider strengths optimally
+- **Fault tolerance**: Fallback to alternate providers
+
+### 2. Collective Intelligence
+- **Agent specialization**: Each agent develops unique strengths
+- **Consensus wisdom**: Multiple perspectives improve accuracy
+- **Population diversity**: Maintains broad capability coverage
+- **Emergent coordination**: Agents learn to collaborate
+
+### 3. Multi-Scale Processing
+- **Micro**: HTM cell-level patterns (milliseconds)
+- **Meso**: Temporal sequences (seconds to minutes)
+- **Macro**: Agent behaviors (minutes to hours)
 - **Mega**: Population evolution (hours to days)
+- **Meta**: Orchestration optimization (continuous)
 
-### 2. Uncertainty-Aware Adaptation
-- HTM anomaly detection identifies novel patterns
-- Bayesian uncertainty guides exploration
-- Agent specialization reduces epistemic uncertainty
-- Population diversity maintains coverage
-
-### 3. Collective Reasoning
-- Individual agents contribute local evidence
-- Bayesian networks aggregate beliefs
-- Population consensus emerges from specialization
-- Evolution optimizes collective performance
-
-### 4. Continuous Learning
-- HTM provides online sensory learning
-- Temporal system builds episodic knowledge
-- Bayesian networks refine causal models
-- Agents adapt behavioral strategies
-- Population evolves optimal configurations
+### 4. Adaptive Resilience
+- **Provider failover**: Automatic fallback handling
+- **Agent redundancy**: Multiple agents prevent single points of failure
+- **Consensus robustness**: Outlier detection and handling
+- **Population recovery**: Evolution recovers from failures
 
 ## System Synergies
 
-### Complementary Strengths
+### Layer Interactions
 
-| System | Strength | Contribution |
-|--------|----------|--------------|
-| HTM | Biological realism | Robust pattern recognition |
-| Temporal | Sequence processing | Predictive capabilities |
-| Bayesian | Probabilistic reasoning | Uncertainty handling |
-| Uncertainty | Confidence estimation | Informed decisions |
-| Dynamic Agents | Real-time adaptation | Behavioral flexibility |
-| Evolution | Population optimization | Long-term improvement |
+| Layer | Provides | Consumes | Enables |
+|-------|----------|----------|---------|
+| Adapters | LLM interface | Prompts & queries | Multi-provider access |
+| Orchestration | Coordination | Agent responses | Collective intelligence |
+| Agents | Specialized reasoning | Core patterns & evidence | Adaptive behaviors |
+| Core | Pattern recognition | Sensory input | Predictive processing |
+| Evidence | Probabilistic inference | Patterns & beliefs | Uncertainty-aware decisions |
 
-### Mutual Enhancement
+### Mutual Enhancement Cycles
 
-1. **HTM + Temporal**: Spatial patterns gain temporal context
-2. **Temporal + Bayesian**: Predictions become probabilistic
-3. **Bayesian + Uncertainty**: Beliefs include confidence bounds
-4. **Uncertainty + Agents**: Exploration guided by knowledge gaps
-5. **Agents + Evolution**: Individual learning informs population
-6. **Evolution + HTM**: Successful patterns propagate genetically
+1. **Adapter → Agent**: Provider diversity enables specialization
+2. **Agent → Orchestrator**: Specialization improves consensus quality
+3. **Orchestrator → Population**: Performance metrics guide evolution
+4. **Core → Evidence**: Patterns become probabilistic beliefs
+5. **Evidence → Agent**: Uncertainty guides exploration
+6. **Population → Adapter**: Evolution optimizes provider usage
 
 ## Configuration Strategy
 
 ### Integrated System Configuration
 ```typescript
 const systemConfig = {
+  // Adapter Layer
+  adapters: {
+    providers: ['openai', 'anthropic', 'gemini', 'lmstudio'],
+    retry: { maxAttempts: 3, backoff: 'exponential' },
+    cache: { enabled: true, size: 1000 },
+    loadBalancing: 'capability-based'
+  },
+  
+  // Orchestration Layer
+  orchestration: {
+    complexity: {
+      analysisDepth: 'comprehensive',
+      agentScaling: 'dynamic'
+    },
+    consensus: {
+      method: 'adaptive',
+      minParticipants: 3,
+      qualityThreshold: 0.7
+    },
+    performance: {
+      tracking: true,
+      optimization: 'continuous'
+    }
+  },
+  
+  // Agent Layer
+  agents: {
+    templates: ['analytical', 'creative', 'critical'],
+    population: {
+      size: 100,
+      diversity: 0.3
+    },
+    adaptation: {
+      rate: 0.1,
+      specialization: 'emergent'
+    }
+  },
+  
   // Core Layer
   core: {
     htm: {
-      numColumns: 2048,
-      cellsPerColumn: 32,
+      columns: 2048,
       sparsity: 0.02,
-      learningRate: 0.1
+      learning: 'online'
     },
     temporal: {
       scales: [1000, 10000, 60000],
-      sequenceLength: 100,
-      predictionHorizon: 10
+      memory: 'episodic'
     }
   },
   
   // Evidence Layer
   evidence: {
     bayesian: {
-      inferenceMethod: 'exact',
-      conflictResolution: 'dempster-shafer',
-      updateMethod: 'jeffrey'
+      inference: 'exact',
+      updates: 'incremental'
     },
     uncertainty: {
       decomposition: true,
-      intervals: 'bootstrap',
-      sensitivity: 'global'
+      propagation: 'full'
     }
-  },
-  
-  // Agent Layer
-  agents: {
-    dynamic: {
-      adaptationRate: 0.1,
-      specializationDepth: 0.7,
-      morphologyFlexibility: 0.5
-    },
-    evolution: {
-      populationSize: 100,
-      mutationRate: 0.1,
-      crossoverRate: 0.8,
-      selectionPressure: 2.0
-    }
-  },
-  
-  // Integration Parameters
-  integration: {
-    htmToEvidence: 0.8,      // Pattern confidence weight
-    evidenceToAgent: 0.9,     // Belief influence on actions
-    agentToCore: 0.6,        // Behavioral feedback to perception
-    uncertaintyThreshold: 0.3 // Trigger for exploration
   }
 };
 ```
 
 ## Performance Characteristics
 
-### Computational Requirements
-- **HTM**: O(columns × segments) per input
-- **Temporal**: O(patterns × context_dims) per update
-- **Bayesian**: O(nodes²) for exact inference
-- **Agents**: O(population × capabilities) per generation
-- **Total**: Parallel processing enables real-time operation
+### Latency Breakdown
+- **Adapter calls**: 100-2000ms (provider dependent)
+- **Orchestration overhead**: 50-200ms
+- **Agent processing**: 200-500ms (parallel)
+- **Core processing**: 10-50ms
+- **Evidence inference**: 20-100ms
+- **Total**: 500-3000ms (task dependent)
 
-### Memory Scaling
-- **HTM**: Fixed by architecture configuration
-- **Temporal**: Grows with episodes, pruned by importance
-- **Bayesian**: Network size × state space
-- **Agents**: Population × genome size
-- **Total**: Bounded by configured limits
+### Scalability Dimensions
+- **Horizontal**: Add providers and agents
+- **Vertical**: Increase model/agent complexity
+- **Temporal**: Extend prediction horizons
+- **Population**: Grow agent diversity
 
-### Learning Dynamics
-- **HTM**: Continuous incremental updates
-- **Temporal**: Event-driven sequence learning
-- **Bayesian**: Batch belief updates
-- **Agents**: Continuous adaptation with generational evolution
+### Resource Optimization
+- **Caching**: Reduce redundant LLM calls
+- **Pooling**: Reuse initialized agents
+- **Pruning**: Remove low-sensitivity connections
+- **Evolution**: Optimize population efficiency
 
 ## Usage Patterns
 
-### Typical Processing Pipeline
+### Simple Query Processing
 ```typescript
-// Initialize integrated system
-const system = new IntegratedCognitiveSystem(systemConfig);
+// Basic single-agent query
+const response = await system.query(
+  "Explain quantum computing",
+  { complexity: 'low' }
+);
+```
 
-// Main processing loop
-async function processTimestep(input: any) {
-  // 1. Core processing
-  const perception = await system.perceive(input);
-  
-  // 2. Evidence reasoning
-  const reasoning = await system.reason(perception);
-  
-  // 3. Agent action
-  const action = await system.act(reasoning);
-  
-  // 4. Execute and observe
-  const result = await system.execute(action);
-  
-  // 5. Learn and adapt
-  await system.adapt(result);
-  
-  // 6. Evolve if needed
-  if (system.generationComplete()) {
-    await system.evolve();
+### Complex Orchestration
+```typescript
+// Multi-agent reasoning with constraints
+const response = await system.orchestrate({
+  query: "Analyze climate change mitigation strategies",
+  context: { timeframe: "2030-2050", region: "global" },
+  constraints: {
+    minConfidence: 0.8,
+    requiredEvidence: ['peer_reviewed', 'empirical'],
+    consensusMethod: 'bayesian_aggregation'
   }
-  
-  return result;
-}
+});
+```
+
+### Continuous Learning
+```typescript
+// Process with learning enabled
+const response = await system.processWithLearning({
+  query: "Predict market trends",
+  enableAdaptation: true,
+  trackPerformance: true,
+  evolveIfNeeded: true
+});
 ```
 
 ## Future Integration Opportunities
 
-1. **Meta-Learning Layer**: System that learns how to configure and integrate other systems
-2. **Attention Mechanisms**: Dynamic resource allocation based on uncertainty and importance
-3. **Emotional Valence**: Affective signals for importance weighting and memory consolidation
-4. **Symbolic Reasoning**: Abstract symbol manipulation grounded in subsymbolic patterns
-5. **Communication Protocols**: Emergent language for inter-agent coordination
+1. **Meta-Orchestration**: Orchestrators managing orchestrators
+2. **Cross-System Learning**: Transfer learning between subsystems
+3. **Emergent Communication**: Agent language development
+4. **Causal Understanding**: Integration with causal inference
+5. **Explainable AI**: Interpretable decision paths through all layers
 
 ## Conclusion
 
-The integration of agent systems, core neural processing, and evidence reasoning creates a comprehensive cognitive architecture where:
+The LLM-CMP architecture achieves robust, adaptive intelligence through five integrated layers:
 
-- **Perception** (HTM/Temporal) provides rich sensory understanding
-- **Reasoning** (Bayesian/Uncertainty) enables probabilistic inference
-- **Action** (Agents) implements adaptive behaviors
-- **Evolution** optimizes the entire system over time
+- **Adapters** provide flexible access to multiple LLM providers
+- **Orchestration** enables collective intelligence through coordination
+- **Agents** implement specialized, evolving behaviors
+- **Core** offers biological neural processing and temporal understanding
+- **Evidence** ensures probabilistic reasoning with calibrated uncertainty
 
-This multi-layer architecture achieves robust, adaptive intelligence through the synergistic combination of biological inspiration (HTM), mathematical rigor (Bayesian), and evolutionary optimization (Genetic Algorithms), creating a system capable of continuous learning and adaptation in complex, uncertain environments.
+This multi-layer architecture creates a system capable of:
+- Learning from experience at multiple timescales
+- Adapting to new challenges through evolution
+- Reasoning under uncertainty with confidence bounds
+- Leveraging collective intelligence for robust decisions
+- Continuously improving through performance feedback
+
+The synergistic integration of these subsystems produces emergent capabilities beyond what any individual component could achieve, creating a foundation for truly adaptive, self-improving artificial intelligence.

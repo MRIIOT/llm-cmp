@@ -59,11 +59,29 @@ The central orchestrator for all crossover operations.
    - Blends capabilities based on semantic similarity
    - Creates gradient combinations of traits
    - High novelty potential for compatible parents
+   - Uses `SemanticCrossoverPoint` interface:
+     ```typescript
+     interface SemanticCrossoverPoint {
+       dimension: string;
+       blendRatio: number;
+       inheritanceSource: 'parent1' | 'parent2' | 'blend' | 'novel';
+       confidence: number;
+     }
+     ```
 
 4. **Morphological Crossover**
    - Merges structural and morphological properties
    - Creates emergent structural innovations
    - Highest novelty potential
+   - Returns `MorphologicalCrossover` data:
+     ```typescript
+     interface MorphologicalCrossover {
+       structureBlend: any;
+       connectionMerge: any;
+       emergentProperties: string[];
+       structuralNovelty: number;
+     }
+     ```
 
 5. **Adaptive Crossover**
    - Dynamically selects best crossover method
@@ -87,6 +105,11 @@ blendedStrength = (parent1.strength * blendRatio) +
                   (parent2.strength * (1 - blendRatio))
 ```
 
+##### Blend Confidence Calculation
+```typescript
+confidence = (strengthSimilarity * 0.6) + (specializationOverlap * 0.4)
+```
+
 #### Performance Tracking
 - Records all crossover operations
 - Tracks success rates by strategy type
@@ -107,6 +130,18 @@ The main fitness assessment system.
 - Supports multi-objective optimization
 - Tracks fitness history and trends
 - Generates improvement recommendations
+- Analyzes fitness landscapes
+- Identifies bottlenecks and opportunities
+
+**Key Methods:**
+- `evaluateFitness()` - Comprehensive fitness evaluation
+- `evaluateMultiObjective()` - Multi-objective fitness for Pareto optimization
+- `compareFitness()` - Compare fitness between agents
+- `dominates()` - Determine Pareto dominance
+- `calculateFitnessDiversity()` - Measure fitness diversity in population
+- `identifyBottlenecks()` - Find performance bottlenecks
+- `generateImprovementRecommendations()` - Suggest improvements
+- `analyzeFitnessLandscape()` - Analyze landscape characteristics
 
 ##### Fitness Dimensions
 
@@ -172,6 +207,30 @@ The main fitness assessment system.
 overall = Σ(dimension_score * dimension_weight)
 ```
 
+##### Multi-Objective Fitness Interface
+```typescript
+interface MultiObjectiveFitness {
+  objectives: Map<string, number>;
+  paretoRank: number;
+  crowdingDistance: number;
+  dominationCount: number;
+  dominatedSolutions: Set<string>;
+  overallScore: number;
+}
+```
+
+##### Fitness Landscape Interface
+```typescript
+interface FitnessLandscape {
+  peaks: FitnessPoint[];
+  valleys: FitnessPoint[];
+  gradients: Map<string, number>;
+  ruggedNess: number;      // Landscape variability
+  neutrality: number;      // Neutral mutation frequency
+  epistasis: number;       // Gene interaction effects
+}
+```
+
 ##### Pareto Optimization Support
 - Multi-objective fitness evaluation
 - Pareto dominance calculation
@@ -226,6 +285,7 @@ Central controller for all mutation operations.
    - Normal distribution noise
    - Conservative improvements
    - Low risk, moderate benefit
+   - Uses Box-Muller transform for noise generation
 
 2. **Uniform Mutation**
    - Uniform random changes
@@ -236,16 +296,51 @@ Central controller for all mutation operations.
    - Performance-based rates
    - Context-sensitive strength
    - Optimal risk/reward balance
+   - Uses `AdaptiveMutationParams`:
+     ```typescript
+     interface AdaptiveMutationParams {
+       baseRate: number;
+       performanceModifier: number;
+       diversityModifier: number;
+       stabilityModifier: number;
+       contextualFactors: any;
+       learningRate: number;
+       confidence?: number;
+       effectiveStrength?: number;
+     }
+     ```
 
 4. **Directional Mutation**
    - Goal-oriented changes
    - Gradient-based improvements
    - High benefit when direction known
+   - Uses `DirectionalMutation` interface:
+     ```typescript
+     interface DirectionalMutation {
+       direction: 'improve_performance' | 'increase_diversity' | 
+                  'enhance_stability' | 'boost_creativity';
+       targetDimensions: string[];
+       gradientVector: number[];
+       stepSize: number;
+       confidence: number;
+     }
+     ```
 
 5. **Structural Mutation**
    - Add/remove capabilities
    - Merge/split capabilities
    - High risk, high potential
+   - Uses `StructuralMutation` interface:
+     ```typescript
+     interface StructuralMutation {
+       mutationType: 'add_capability' | 'remove_capability' | 
+                     'merge_capabilities' | 'split_capability' | 'restructure';
+       targetStructure: string;
+       parameters: any;
+       reversibilityInfo: any;
+       structuralImpact: number;
+     }
+     ```
 
 6. **Creative Mutation**
    - Novel capability generation
@@ -273,6 +368,12 @@ potential = (
   (1 - adaptationHistory/100) * 0.2  // Exploration need
 )
 ```
+
+##### Creative Mutation Features
+- Novel specialization combinations
+- Non-linear strength modifications (0 to 2x multiplier)
+- Morphology innovation with random elements
+- Novel capability types: 'quantum_reasoning', 'empathic_analysis', 'fractal_creativity', 'meta_learning'
 
 #### Risk Assessment
 Each mutation type includes:
@@ -380,6 +481,20 @@ The main population evolution controller.
 }
 ```
 
+#### Additional Methods
+
+##### Population Management
+- `resetPopulation()` - Clear and reset entire population
+- `assessPopulationDiversity()` - Detailed diversity assessment
+- `evolvePopulation(generations)` - Convenience method for multi-generation evolution
+
+##### Analysis Methods
+- `analyzeFitnessDistribution()` - Statistical analysis of fitness
+- `analyzeEvolutionTrends()` - Track evolution trajectories
+- `identifyBottlenecks()` - Find evolution constraints
+- `identifyOpportunities()` - Discover improvement potential
+- `generateRecommendations()` - Suggest optimization strategies
+
 #### Advanced Features
 
 ##### Migration System
@@ -393,6 +508,21 @@ The main population evolution controller.
 - Fitness-based resource allocation
 - Stagnation detection
 - Extinction management
+- Species interface:
+  ```typescript
+  interface Species {
+    id: string;
+    representative: AdaptiveAgent;
+    members: AdaptiveAgent[];
+    averageFitness: number;
+    fitnessHistory: number[];
+    stagnationCount: number;
+    speciesAge: number;
+    extinctionRisk: number;
+  }
+  ```
+- Compatibility threshold (default 0.6) determines species boundaries
+- Extinction risk based on: population size, stagnation, and fitness
 
 ##### Population Analysis
 - Fitness distribution analysis
@@ -411,10 +541,13 @@ populationManager.initializePopulation(seedAgents);
 
 // Run evolution
 const results = await populationManager.evolveMultipleGenerations(100);
+// Or use convenience method:
+const result = await populationManager.evolvePopulation(100, context);
 
 // Analyze outcomes
 const analysis = populationManager.analyzePopulation();
 const bestAgents = populationManager.getBestAgents(10);
+const diversity = await populationManager.assessPopulationDiversity();
 ```
 
 ### Custom Evolution Strategy
@@ -435,6 +568,11 @@ const evolutionConfig = {
   mutation: {
     mutationRate: 0.15,    // Higher exploration
     enableStructuralMutation: true
+  },
+  population: {
+    replacementStrategy: 'elite_preserve',
+    targetDiversity: 0.8,
+    speciesThreshold: 0.7
   }
 };
 ```
@@ -451,6 +589,31 @@ const direction: DirectionalMutation = {
 };
 
 await mutationManager.mutateDirectional(agent, direction);
+
+// Structural changes
+const structuralMutation: StructuralMutation = {
+  mutationType: 'merge_capabilities',
+  targetStructure: 'capability',
+  parameters: { sourceCapabilities: ['cap1', 'cap2'] },
+  reversibilityInfo: { reversible: true },
+  structuralImpact: 0.4
+};
+
+await mutationManager.mutateStructural(agent, structuralMutation);
+```
+
+### Multi-Objective Optimization
+```typescript
+// Evaluate multi-objective fitness
+const multiObjective = await fitnessEvaluator.evaluateMultiObjective(agent, context);
+
+// Check Pareto dominance
+const dominates = fitnessEvaluator.dominates(fitness1, fitness2);
+
+// Analyze fitness landscape
+const landscape = fitnessEvaluator.analyzeFitnessLandscape(fitnessHistory);
+console.log(`Landscape ruggedness: ${landscape.ruggedNess}`);
+console.log(`Epistasis level: ${landscape.epistasis}`);
 ```
 
 ## Performance Optimization
@@ -502,6 +665,12 @@ await mutationManager.mutateDirectional(agent, direction);
 3. Analyze species lifespans
 4. Identify evolutionary bottlenecks
 5. Measure innovation rates
+
+### Convergence and Stagnation Detection
+1. **Convergence**: Detected when fitness variance < 0.001 over 10 generations
+2. **Stagnation**: When stagnation level > 0.9 (based on 5-generation window)
+3. Evolution automatically stops if convergence or stagnation detected
+4. Use migration or environmental changes to break stagnation
 
 ## Future Enhancements
 

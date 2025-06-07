@@ -84,10 +84,11 @@ export class TemporalPooler {
     this.numCells = numColumns * this.config.cellsPerColumn;
     
     // DEBUG: Log initialization parameters
-    console.log(`[DEBUG] TemporalPooler initialized:`);
+    console.log(`[TemporalPooler] Initialized with:`);
     console.log(`  - numColumns: ${numColumns}`);
     console.log(`  - cellsPerColumn: ${this.config.cellsPerColumn}`);
     console.log(`  - numCells: ${this.numCells} (should be ${numColumns} × ${this.config.cellsPerColumn})`);
+    console.log(`  - Max valid cell ID: ${this.numCells - 1}`);
     
     this.iteration = 0;
     this.nextSegmentId = 0;
@@ -345,7 +346,18 @@ export class TemporalPooler {
     let bestCell = columnCells[0];
     let bestScore = -1;
     
+    // Debug logging
+    if (columnIndex >= this.numColumns) {
+      console.error(`[TemporalPooler] Invalid column index ${columnIndex} (max: ${this.numColumns - 1})`);
+    }
+    
     for (const cellId of columnCells) {
+      // Validate cell ID
+      if (cellId >= this.numCells) {
+        console.error(`[TemporalPooler] Invalid cell ID ${cellId} generated for column ${columnIndex} (max: ${this.numCells - 1})`);
+        continue;
+      }
+      
       const cell = this.cells[cellId];
       let maxOverlap = 0;
       

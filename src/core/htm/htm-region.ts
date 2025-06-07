@@ -111,11 +111,20 @@ export class HTMRegion {
     };
     this.spatialPooler = new SpatialPooler(spatialConfig);
     
-    // Initialize temporal pooler
+    // Initialize temporal pooler - ensure cellsPerColumn is consistent
     const temporalConfig = {
       ...createDefaultTemporalPoolerConfig(),
+      cellsPerColumn: this.config.cellsPerColumn, // Ensure consistency
       ...this.config.temporalConfig
     };
+    
+    // Debug log the configuration
+    console.log(`[HTMRegion] Initializing with:`);
+    console.log(`  - numColumns: ${this.config.numColumns}`);
+    console.log(`  - cellsPerColumn: ${this.config.cellsPerColumn}`);
+    console.log(`  - temporalConfig.cellsPerColumn: ${temporalConfig.cellsPerColumn}`);
+    console.log(`  - Total cells: ${this.config.numColumns * this.config.cellsPerColumn}`);
+    
     this.temporalPooler = new TemporalPooler(this.config.numColumns, temporalConfig);
     
     // Initialize column state manager

@@ -212,6 +212,24 @@ export class ColumnStateManager {
     temporalState: TemporalState,
     predictions: { predictedColumns: boolean[]; confidence: number[] }
   ): void {
+    // Add safety check
+    if (!temporalState) {
+      console.error('updateTemporalStates called with undefined temporalState');
+      return;
+    }
+
+    // Debug logging
+    console.log(`[ColumnStateManager] updateTemporalStates debug:`);
+    console.log(`  - numColumns: ${this.numColumns}`);
+    console.log(`  - cellsPerColumn: ${this.cellsPerColumn}`);
+    console.log(`  - currentStates.length: ${this.currentStates.length}`);
+    console.log(`  - activeCells count: ${temporalState.activeCells.size}`);
+    if (temporalState.activeCells.size > 0) {
+      const cellIds = Array.from(temporalState.activeCells);
+      console.log(`  - Sample cell IDs: ${cellIds.slice(0, 5).join(', ')}`);
+      console.log(`  - Max cell ID: ${Math.max(...cellIds)}`);
+    }
+
     // Clear previous temporal state
     for (let i = 0; i < this.numColumns; i++) {
       const state = this.currentStates[i];
@@ -223,22 +241,41 @@ export class ColumnStateManager {
       state.confidence = predictions.confidence[i] || 0;
     }
 
-    // Process active cells
+    // Process active cells with bounds checking
     for (const cellId of temporalState.activeCells) {
       const columnIndex = Math.floor(cellId / this.cellsPerColumn);
-      this.currentStates[columnIndex].activeCells.push(cellId);
+      
+      // Debug first few
+      if (Array.from(temporalState.activeCells).indexOf(cellId) < 3) {
+        console.log(`  - Cell ${cellId} -> Column ${columnIndex}`);
+      }
+      
+      // Bounds check
+      if (columnIndex >= 0 && columnIndex < this.numColumns) {
+        this.currentStates[columnIndex].activeCells.push(cellId);
+      } else {
+        console.error(`[ColumnStateManager] Cell ID ${cellId} maps to invalid column index ${columnIndex} (max: ${this.numColumns - 1})`);
+      }
     }
 
-    // Process winner cells
+    // Process winner cells with bounds checking
     for (const cellId of temporalState.winnerCells) {
       const columnIndex = Math.floor(cellId / this.cellsPerColumn);
-      this.currentStates[columnIndex].winnerCells.push(cellId);
+      if (columnIndex >= 0 && columnIndex < this.numColumns) {
+        this.currentStates[columnIndex].winnerCells.push(cellId);
+      } else {
+        console.error(`[ColumnStateManager] Winner cell ID ${cellId} maps to invalid column index ${columnIndex}`);
+      }
     }
 
-    // Process predictive cells
+    // Process predictive cells with bounds checking
     for (const cellId of temporalState.predictiveCells) {
       const columnIndex = Math.floor(cellId / this.cellsPerColumn);
-      this.currentStates[columnIndex].predictiveCells.push(cellId);
+      if (columnIndex >= 0 && columnIndex < this.numColumns) {
+        this.currentStates[columnIndex].predictiveCells.push(cellId);
+      } else {
+        console.error(`[ColumnStateManager] Predictive cell ID ${cellId} maps to invalid column index ${columnIndex}`);
+      }
     }
 
     // Identify bursting columns

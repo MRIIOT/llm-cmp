@@ -704,16 +704,16 @@ export class Orchestrator {
     return [
       {
         id: 'analytical',
-        name: 'Analytical Reasoner',
-        description: 'Specializes in logical analysis and deduction',
+        name: 'Analytical Agent',
+        description: 'Specializes in logical reasoning and data analysis',
         capabilities: [
           {
             id: 'logical_analysis',
             name: 'Logical Analysis',
-            description: 'Deep logical reasoning',
+            description: 'Deep logical reasoning and data analysis',
             strength: 0.9,
             adaptationRate: 0.05,
-            specializations: ['deduction', 'inference', 'proof'],
+            specializations: ['logical_analysis', 'data_analysis', 'mathematical_reasoning'],
             morphology: { structure: {}, connections: new Map(), emergentProperties: [], adaptationHistory: [] },
             lastUsed: new Date(),
             performanceHistory: []
@@ -722,16 +722,16 @@ export class Orchestrator {
       },
       {
         id: 'creative',
-        name: 'Creative Synthesizer',
-        description: 'Specializes in creative problem solving',
+        name: 'Creative Agent',
+        description: 'Focuses on creative solutions and novel approaches',
         capabilities: [
           {
             id: 'creative_synthesis',
             name: 'Creative Synthesis',
-            description: 'Novel solution generation',
+            description: 'Creative generation and brainstorming',
             strength: 0.85,
             adaptationRate: 0.15,
-            specializations: ['ideation', 'innovation', 'synthesis'],
+            specializations: ['creative_generation', 'brainstorming', 'synthesis'],
             morphology: { structure: {}, connections: new Map(), emergentProperties: [], adaptationHistory: [] },
             lastUsed: new Date(),
             performanceHistory: []
@@ -740,16 +740,52 @@ export class Orchestrator {
       },
       {
         id: 'critical',
-        name: 'Critical Evaluator',
-        description: 'Specializes in critique and risk assessment',
+        name: 'Critical Analysis Agent',
+        description: 'Evaluates and critiques proposed solutions',
         capabilities: [
           {
             id: 'critical_evaluation',
             name: 'Critical Evaluation',
-            description: 'Risk and weakness identification',
+            description: 'Critical thinking and error detection',
             strength: 0.87,
             adaptationRate: 0.08,
-            specializations: ['critique', 'risk_assessment', 'validation'],
+            specializations: ['critical_thinking', 'error_detection', 'validation'],
+            morphology: { structure: {}, connections: new Map(), emergentProperties: [], adaptationHistory: [] },
+            lastUsed: new Date(),
+            performanceHistory: []
+          }
+        ]
+      },
+      {
+        id: 'integrator',
+        name: 'Integration Agent',
+        description: 'Integrates diverse perspectives into coherent solutions',
+        capabilities: [
+          {
+            id: 'integration',
+            name: 'Integration',
+            description: 'Synthesis and pattern recognition',
+            strength: 0.88,
+            adaptationRate: 0.10,
+            specializations: ['synthesis', 'pattern_recognition', 'holistic_thinking'],
+            morphology: { structure: {}, connections: new Map(), emergentProperties: [], adaptationHistory: [] },
+            lastUsed: new Date(),
+            performanceHistory: []
+          }
+        ]
+      },
+      {
+        id: 'temporal',
+        name: 'Temporal Pattern Agent',
+        description: 'Analyzes temporal patterns and sequences (HTM-enhanced)',
+        capabilities: [
+          {
+            id: 'temporal_analysis',
+            name: 'Temporal Analysis',
+            description: 'Temporal reasoning and sequence prediction',
+            strength: 0.86,
+            adaptationRate: 0.12,
+            specializations: ['temporal_reasoning', 'sequence_prediction', 'pattern_recognition'],
             morphology: { structure: {}, connections: new Map(), emergentProperties: [], adaptationHistory: [] },
             lastUsed: new Date(),
             performanceHistory: []
@@ -804,12 +840,44 @@ export class Orchestrator {
   }
 
   private determineRequiredCapabilities(factors: any): string[] {
-    const capabilities: string[] = ['reasoning']; // Always need reasoning
+    const capabilities: string[] = [];
     
-    if (factors.hasTemporalAspect) capabilities.push('temporal_analysis');
-    if (factors.requiresCreativity) capabilities.push('creative_synthesis');
-    if (factors.requiresAnalysis) capabilities.push('logical_analysis');
-    if (factors.requiresCritique) capabilities.push('critical_evaluation');
+    // Always include at least one base capability
+    capabilities.push('reasoning');
+    
+    // Add diverse capabilities based on query characteristics
+    if (factors.hasTemporalAspect) {
+      capabilities.push('temporal_analysis');
+    }
+    if (factors.requiresCreativity) {
+      capabilities.push('creative_synthesis');
+    }
+    if (factors.requiresAnalysis) {
+      capabilities.push('logical_analysis');
+    }
+    if (factors.requiresCritique) {
+      capabilities.push('critical_evaluation');
+    }
+    
+    // Always add integration for synthesis
+    capabilities.push('integration');
+    
+    // Ensure we have enough diversity - add more capabilities if needed
+    if (capabilities.length < 3) {
+      const additionalCaps = [
+        'logical_analysis',
+        'creative_synthesis',
+        'critical_evaluation',
+        'temporal_analysis',
+        'integration'
+      ].filter(cap => !capabilities.includes(cap));
+      
+      // Add random additional capabilities
+      while (capabilities.length < 3 && additionalCaps.length > 0) {
+        const randomIndex = Math.floor(Math.random() * additionalCaps.length);
+        capabilities.push(additionalCaps.splice(randomIndex, 1)[0]);
+      }
+    }
     
     return capabilities;
   }
@@ -832,23 +900,56 @@ export class Orchestrator {
   }
 
   private selectAgentTemplate(requiredCapabilities: string[], existingAgents: ActiveAgent[]): AgentTemplate {
-    // Find template that best matches required capabilities
-    let bestTemplate: AgentTemplate | null = null;
-    let bestScore = 0;
+    // Track which templates have been used to ensure diversity
+    const usedTemplateIds = new Set<string>(
+      existingAgents.map(agent => {
+        // Extract template ID from agent specialization
+        const capId = agent.specialization[0];
+        if (capId === 'logical_analysis') return 'analytical';
+        if (capId === 'creative_synthesis') return 'creative';
+        if (capId === 'critical_evaluation') return 'critical';
+        if (capId === 'integration') return 'integrator';
+        if (capId === 'temporal_analysis') return 'temporal';
+        return 'analytical'; // default
+      })
+    );
     
-    this.agentTemplates.forEach(template => {
+    // Get all available templates
+    const availableTemplates = Array.from(this.agentTemplates.values());
+    
+    // First, try to find an unused template that matches required capabilities
+    let selectedTemplate: AgentTemplate | null = null;
+    let bestScore = -1;
+    
+    availableTemplates.forEach(template => {
+      // Skip if already used (for diversity)
+      if (usedTemplateIds.has(template.id) && existingAgents.length < availableTemplates.length) {
+        return;
+      }
+      
       const templateCaps = template.capabilities.map(c => c.id);
       const matchScore = requiredCapabilities.filter(req =>
         templateCaps.some(cap => cap.includes(req))
       ).length;
       
-      if (matchScore > bestScore) {
-        bestScore = matchScore;
-        bestTemplate = template;
+      // Prefer unused templates with any match
+      const diversityBonus = usedTemplateIds.has(template.id) ? 0 : 1;
+      const totalScore = matchScore + diversityBonus;
+      
+      if (totalScore > bestScore) {
+        bestScore = totalScore;
+        selectedTemplate = template;
       }
     });
     
-    return bestTemplate || this.getDefaultTemplates()[0];
+    // If no good match found, use round-robin for diversity
+    if (!selectedTemplate || bestScore <= 0) {
+      const templateArray = Array.from(this.agentTemplates.values());
+      const index = existingAgents.length % templateArray.length;
+      selectedTemplate = templateArray[index];
+    }
+    
+    return selectedTemplate || this.getDefaultTemplates()[0];
   }
 
   private async createAgent(template: AgentTemplate, request: OrchestrationRequest): Promise<Agent> {
