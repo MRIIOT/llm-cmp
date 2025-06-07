@@ -35,6 +35,7 @@ import { BayesianNetwork } from '../evidence/bayesian/bayesian-network.js';
 import { InferenceEngine } from '../evidence/bayesian/inference-engine.js';
 import { UncertaintyMetrics } from '../evidence/uncertainty/uncertainty-metrics.js';
 import { AdaptiveAgent } from '../agents/dynamic/adaptive-agent.js';
+import { SemanticEncoder } from './semantic/index.js';
 
 export interface AgentConfig {
   id: string;
@@ -64,6 +65,9 @@ export class Agent {
   private bayesianNetwork!: BayesianNetwork;
   private inferenceEngine!: InferenceEngine;
   private uncertaintyMetrics!: UncertaintyMetrics;
+  
+  // Semantic encoding
+  private semanticEncoder!: SemanticEncoder;
   
   // State tracking
   private messageHistory: Message[];
@@ -138,6 +142,14 @@ export class Agent {
   ): Promise<Message> {
     const startTime = Date.now();
     
+    // Initialize semantic encoder if not already done
+    if (!this.semanticEncoder) {
+      this.semanticEncoder = new SemanticEncoder(llmInterface, {
+        numColumns: this.config.htm.columnCount,
+        sparsity: 0.02
+      });
+    }
+    
     try {
       // 1. Update temporal context
       const temporalPattern = await this.updateTemporalContext(query);
@@ -196,17 +208,18 @@ export class Agent {
    * Update temporal context with new query
    */
   private async updateTemporalContext(query: string): Promise<TemporalContext> {
-    // Encode query for HTM
-    const encoding = this.encodeForHTM(query);
+    // Encode query using semantic encoding
+    const encoding = await this.semanticEncoder.encodeWithFallback(query);
     
     // Process through HTM
     const output = this.htmRegion.compute(encoding, true);
     
     // Update temporal context
     const contextPattern = new Array(50).fill(0); // 50 is the context dimensions
-    // Fill pattern with some information from the query
-    for (let i = 0; i < Math.min(query.length, 50); i++) {
-      contextPattern[i] = query.charCodeAt(i) / 255; // Normalize to 0-1
+    // Fill pattern with semantic information
+    const activeIndices = encoding.map((bit, idx) => bit ? idx : -1).filter(idx => idx >= 0);
+    for (let i = 0; i < Math.min(activeIndices.length, 50); i++) {
+      contextPattern[i] = activeIndices[i] / this.config.htm.columnCount; // Normalize to 0-1
     }
     
     this.temporalContext.updateContext(contextPattern, Date.now());
@@ -718,6 +731,11 @@ export class Agent {
     };
   }
 
+  /**
+   * @deprecated Replaced by SemanticEncoder.encodeWithFallback
+   * Original hash-based encoding kept for reference
+   */
+  /*
   private encodeForHTM(text: string): boolean[] {
     // Simple encoding - would be more  in production
     const encoding = new Array(2048).fill(false);
@@ -731,6 +749,7 @@ export class Agent {
     
     return encoding;
   }
+  */
 
   private hashString(str: string): number {
     let hash = 0;
