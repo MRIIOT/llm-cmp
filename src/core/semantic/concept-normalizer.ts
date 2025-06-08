@@ -65,7 +65,7 @@ Rules:
 Return ONLY the canonical form, nothing else.`;
 
       const response = await this.llmInterface({
-        model: 'gpt-4',
+        model: 'gpt-3.5-turbo',
         prompt: prompt,
         systemPrompt: 'You are a linguistic expert specializing in concept normalization. Provide consistent canonical forms.',
         temperature: 0.1, // Very low for consistency
@@ -132,7 +132,7 @@ Return a JSON array with the normalized forms in the same order, like:
 ["normalized1", "normalized2", ...]`;
 
         const response = await this.llmInterface({
-          model: 'gpt-4',
+          model: 'gpt-3.5-turbo',
           prompt: prompt,
           systemPrompt: 'You are a linguistic expert. Provide consistent canonical forms in JSON format.',
           temperature: 0.1,
@@ -215,7 +215,7 @@ Consider:
 Return ONLY a number between 0.0 and 1.0`;
 
       const response = await this.llmInterface({
-        model: 'gpt-4',
+        model: 'gpt-3.5-turbo',
         prompt: prompt,
         systemPrompt: 'You are an expert in semantic similarity. Provide consistent similarity scores.',
         temperature: 0.1,

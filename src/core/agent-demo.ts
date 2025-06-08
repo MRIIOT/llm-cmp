@@ -397,7 +397,7 @@ async function example2_temporalPatterns() {
     "What causes market volatility?",
     "How do interest rates affect market volatility?",
     "Can we predict market volatility patterns?",
-    //"How to bake a chocolate cake?",
+    "How to bake a chocolate cake?",
     "What does local currency suggest?",
     "What indicators suggest increasing volatility?"
   ];

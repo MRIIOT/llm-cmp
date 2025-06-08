@@ -859,7 +859,7 @@ export class Agent {
   private selectModel(capability: AgentCapability): string {
     // Select model based on capability requirements
     if (capability.specializations.includes('analytical')) {
-      return 'gpt-4';
+      return 'gpt-3.5-turbo';
     } else if (capability.specializations.includes('creative')) {
       return 'claude-3-opus';
     }
