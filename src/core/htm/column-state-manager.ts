@@ -218,16 +218,10 @@ export class ColumnStateManager {
       return;
     }
 
-    // Debug logging
-    console.log(`[ColumnStateManager] updateTemporalStates debug:`);
-    console.log(`  - numColumns: ${this.numColumns}`);
-    console.log(`  - cellsPerColumn: ${this.cellsPerColumn}`);
-    console.log(`  - currentStates.length: ${this.currentStates.length}`);
-    console.log(`  - activeCells count: ${temporalState.activeCells.size}`);
-    if (temporalState.activeCells.size > 0) {
+    // Reduced debug logging for performance
+    if (this.timestep % 100 === 0 && temporalState.activeCells.size > 0) {
       const cellIds = Array.from(temporalState.activeCells);
-      console.log(`  - Sample cell IDs: ${cellIds.slice(0, 5).join(', ')}`);
-      console.log(`  - Max cell ID: ${Math.max(...cellIds)}`);
+      console.log(`[ColumnStateManager] Active cells: ${temporalState.activeCells.size}, Max cell ID: ${Math.max(...cellIds)}`);
     }
 
     // Clear previous temporal state
@@ -245,10 +239,7 @@ export class ColumnStateManager {
     for (const cellId of temporalState.activeCells) {
       const columnIndex = Math.floor(cellId / this.cellsPerColumn);
       
-      // Debug first few
-      if (Array.from(temporalState.activeCells).indexOf(cellId) < 3) {
-        console.log(`  - Cell ${cellId} -> Column ${columnIndex}`);
-      }
+      // Reduced debug output for performance
       
       // Bounds check
       if (columnIndex >= 0 && columnIndex < this.numColumns) {
