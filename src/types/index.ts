@@ -81,6 +81,7 @@ export interface ReasoningChain {
   confidence: ConfidenceInterval;
   logicalStructure: LogicalStructure;
   temporalPattern: string;
+  logicalProof?: LogicalProof; // Added for formal verification
 }
 
 export interface ReasoningStep {
@@ -91,6 +92,8 @@ export interface ReasoningStep {
   confidence: ConfidenceInterval;
   supporting: string[]; // IDs of supporting steps
   refuting: string[]; // IDs of refuting steps
+  logicalForm?: LogicalStatement; // Added for formal logic
+  inferenceRule?: InferenceRule; // Added to show how derived
 }
 
 export type ReasoningType = 
@@ -110,6 +113,151 @@ export interface LogicalStructure {
   conclusions: string[]; // Step IDs
   assumptions: string[]; // Step IDs
 }
+
+// ===============================================
+// Logical Proof Types
+// ===============================================
+
+export interface LogicalProof {
+  premises: Premise[];
+  inferenceRules: InferenceRuleApplication[];
+  conclusions: Conclusion[];
+  validity: ValidationResult;
+  contradictions: Contradiction[];
+  completeness: CompletenessCheck;
+}
+
+export interface Premise {
+  id: string;
+  statement: LogicalStatement;
+  source: string; // Step ID
+  type: 'axiom' | 'assumption' | 'observation' | 'derived';
+  justification?: string;
+}
+
+export interface LogicalStatement {
+  id: string;
+  content: string;
+  formalNotation: string; // e.g., "P → Q"
+  predicates: Predicate[];
+  quantifiers: Quantifier[];
+  connectives: LogicalConnective[];
+}
+
+export interface Predicate {
+  symbol: string;
+  arity: number;
+  arguments: string[];
+}
+
+export interface Quantifier {
+  type: 'universal' | 'existential';
+  variable: string;
+  scope: string; // ID of sub-statement
+}
+
+export interface LogicalConnective {
+  type: 'and' | 'or' | 'not' | 'implies' | 'iff';
+  operands: string[]; // Statement IDs
+}
+
+export interface InferenceRule {
+  name: string;
+  notation: string;
+  premises: string[]; // Formal patterns like "P→Q", "P"
+  conclusion: string; // Formal pattern like "Q"
+  validity: 'sound' | 'valid' | 'invalid';
+}
+
+export interface InferenceRuleApplication {
+  rule: InferenceRule;
+  premises: string[]; // Actual statement IDs
+  conclusion: string; // Actual statement ID
+  substitutions: Map<string, string>; // Variable bindings
+  valid: boolean;
+}
+
+export interface Conclusion {
+  id: string;
+  statement: LogicalStatement;
+  derivedFrom: string[]; // Premise/inference IDs
+  strength: 'necessary' | 'probable' | 'possible';
+  confidence: ConfidenceInterval;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  isSoundCompound: boolean;
+  isComplete: boolean;
+  errors: ValidationError[];
+  warnings: ValidationWarning[];
+}
+
+export interface ValidationError {
+  type: 'invalid_inference' | 'contradiction' | 'circular_reasoning' | 'missing_premise';
+  location: string[]; // Step IDs
+  description: string;
+  severity: 'critical' | 'major' | 'minor';
+}
+
+export interface ValidationWarning {
+  type: 'weak_inference' | 'assumption_heavy' | 'low_confidence';
+  location: string[]; // Step IDs
+  description: string;
+}
+
+export interface Contradiction {
+  statements: string[]; // Statement IDs that contradict
+  type: 'direct' | 'indirect' | 'semantic';
+  resolution: 'unresolved' | 'premise_rejected' | 'context_dependent';
+  explanation: string;
+}
+
+export interface CompletenessCheck {
+  allPremisesJustified: boolean;
+  allInferencesValid: boolean;
+  conclusionsSupported: boolean;
+  missingElements: string[];
+}
+
+// Common inference rules
+export const COMMON_INFERENCE_RULES: InferenceRule[] = [
+  {
+    name: 'Modus Ponens',
+    notation: 'P→Q, P ⊢ Q',
+    premises: ['P→Q', 'P'],
+    conclusion: 'Q',
+    validity: 'sound'
+  },
+  {
+    name: 'Modus Tollens',
+    notation: 'P→Q, ¬Q ⊢ ¬P',
+    premises: ['P→Q', '¬Q'],
+    conclusion: '¬P',
+    validity: 'sound'
+  },
+  {
+    name: 'Hypothetical Syllogism',
+    notation: 'P→Q, Q→R ⊢ P→R',
+    premises: ['P→Q', 'Q→R'],
+    conclusion: 'P→R',
+    validity: 'sound'
+  },
+  {
+    name: 'Disjunctive Syllogism',
+    notation: 'P∨Q, ¬P ⊢ Q',
+    premises: ['P∨Q', '¬P'],
+    conclusion: 'Q',
+    validity: 'sound'
+  },
+  {
+    name: 'Universal Instantiation',
+    notation: '∀x P(x) ⊢ P(a)',
+    premises: ['∀x P(x)'],
+    conclusion: 'P(a)',
+    validity: 'sound'
+  }
+];
 
 export interface Evidence {
   id: string;

@@ -24,7 +24,13 @@ import {
   LLMRequest,
   LLMResponse,
   AgentError,
-  Config
+  Config,
+  LogicalStatement,
+  InferenceRule,
+  Predicate,
+  Quantifier,
+  LogicalConnective,
+  COMMON_INFERENCE_RULES
 } from '../types/index.js';
 
 // Import our  components
@@ -868,7 +874,7 @@ export class Agent {
   ): string {
     const previousContext = previousSteps.length > 0
       ? `\n\nPrevious reasoning steps:\n${previousSteps.map(s => 
-          `- [${s.type.toUpperCase()}:${s.concept}] ${s.content}`
+          `- [${s.type.toUpperCase()}:${s.concept}${s.logicalForm ? '|' + s.logicalForm.formalNotation : ''}] ${s.content}`
         ).join('\n')}`
       : '';
     
@@ -882,22 +888,29 @@ ${previousContext}
 INSTRUCTIONS:
 Generate reasoning steps in this EXACT format. Each line must follow this pattern:
 
-[TYPE:CONCEPT] reasoning content here
+[TYPE:CONCEPT|LOGICAL_FORM] reasoning content here
 
 Where:
-- TYPE is one of: OBSERVATION, INFERENCE, DEDUCTION, ANALYSIS, PREDICTION, HYPOTHESIS, CONCLUSION
+- TYPE is one of: OBSERVATION, INFERENCE, DEDUCTION, ANALYSIS, PREDICTION, HYPOTHESIS, SYNTHESIS
 - CONCEPT is a short descriptor (1-3 words, use underscores for spaces)
+- LOGICAL_FORM is optional formal notation using predicate logic
+
+LOGICAL NOTATION GUIDE:
+- Predicates: Temperature(x), Causes(x,y), Increases(x)
+- Quantifiers: ∀x (for all), ∃x (exists)
+- Connectives: ∧ (and), ∨ (or), → (implies), ¬ (not), ↔ (iff)
+- Examples: ∀x(P(x) → Q(x)), Causes(warming, storms) ∧ Increases(frequency)
 
 EXAMPLES:
-[OBSERVATION:market_trends] Current market data shows increasing volatility in tech stocks
-[INFERENCE:risk_assessment] Based on the volatility, institutional investors may reduce positions
-[DEDUCTION:price_impact] Therefore, we can expect downward pressure on prices
-[ANALYSIS:correlation_pattern] The correlation between volatility and institutional selling is historically strong
+[OBSERVATION:temperature_data|Temperature(current, 1.1°C_above_baseline)] Current global temperature shows 1.1°C increase
+[INFERENCE:causal_link|Temperature(↑) → ExtremeWeather(↑)] Rising temperatures lead to more extreme weather
+[DEDUCTION:future_impact|NoAction → Temperature(+2-4°C)] Without intervention, temperatures will rise 2-4°C
+[SYNTHESIS:action_required|Limit(1.5°C) → RequiresAction(immediate)] Immediate action needed to limit warming
 
 IMPORTANT:
-- Each reasoning step MUST start with [TYPE:CONCEPT]
-- Keep concepts descriptive but concise
-- Build upon previous steps when relevant
+- Each reasoning step MUST start with [TYPE:CONCEPT] (logical form optional)
+- Use formal notation when relationships/logic are clear
+- Build logical chains that support your conclusions
 - Focus your analysis on: ${capability.specializations.join(', ')}
 
 Begin your reasoning:`;
@@ -909,11 +922,22 @@ Begin your reasoning:`;
 Your core competencies: ${capability.specializations.join(', ')}
 
 CRITICAL FORMATTING RULES:
-1. Every reasoning step must begin with [TYPE:CONCEPT] format
-2. Types: OBSERVATION, INFERENCE, DEDUCTION, ANALYSIS, PREDICTION, HYPOTHESIS, CONCLUSION
+1. Every reasoning step must begin with [TYPE:CONCEPT|LOGICAL_FORM] format
+2. Types: OBSERVATION, INFERENCE, DEDUCTION, ANALYSIS, PREDICTION, HYPOTHESIS, SYNTHESIS
 3. Concepts should be 1-3 words, descriptive, using underscores for spaces
-4. One reasoning step per line
-5. Build logical connections between steps
+4. Logical forms are optional but encouraged for formal reasoning
+5. Use predicate logic notation: P(x), ∀x, ∃x, →, ∧, ∨, ¬, ↔
+6. One reasoning step per line
+7. Build logical connections between steps
+
+LOGICAL NOTATION:
+- Predicates: CapitalCase(args) e.g., Temperature(high), Causes(x,y)
+- Universal: ∀x(P(x) → Q(x)) means "for all x, if P(x) then Q(x)"
+- Existential: ∃x(P(x) ∧ Q(x)) means "there exists x such that P(x) and Q(x)"
+- Implication: P → Q (if P then Q)
+- Conjunction: P ∧ Q (P and Q)
+- Disjunction: P ∨ Q (P or Q)
+- Negation: ¬P (not P)
 
 You excel at structured, logical thinking and always follow the specified format precisely.`;
   }
@@ -922,14 +946,32 @@ You excel at structured, logical thinking and always follow the specified format
     const steps: ReasoningStep[] = [];
     const lines = content.split('\n').filter(line => line.trim());
     
-    // Regex to match [TYPE:CONCEPT] format
-    const stepPattern = /^\[([A-Z_]+):([^\]]+)\]\s*(.+)$/;
+    // Enhanced regex to match [TYPE:CONCEPT|LOGICAL_FORM] format
+    const stepPattern = /^\[([A-Z_]+):([^\]|]+)(?:\|([^\]]+))?\]\s*(.+)$/;
     
     lines.forEach((line, index) => {
       const match = line.match(stepPattern);
       
       if (match) {
-        const [_, type, concept, reasoning] = match;
+        const [_, type, concept, logicalFormNotation, reasoning] = match;
+        
+        // Create logical form if notation provided
+        let logicalForm: LogicalStatement | undefined;
+        let inferenceRule: InferenceRule | undefined;
+        
+        if (logicalFormNotation) {
+          logicalForm = {
+            id: this.generateId('stmt'),
+            content: reasoning.trim(),
+            formalNotation: logicalFormNotation.trim(),
+            predicates: this.extractPredicates(logicalFormNotation),
+            quantifiers: this.extractQuantifiers(logicalFormNotation),
+            connectives: this.extractConnectives(logicalFormNotation)
+          };
+          
+          // Check if this step uses a known inference rule
+          inferenceRule = this.matchInferenceRule(type, logicalFormNotation, steps);
+        }
         
         steps.push({
           id: this.generateId('step'),
@@ -938,7 +980,9 @@ You excel at structured, logical thinking and always follow the specified format
           concept: this.normalizeConcept(concept),
           confidence: this.calculateStepConfidence(reasoning, type, steps),
           supporting: this.findSupportingSteps(reasoning, concept, steps),
-          refuting: this.findRefutingSteps(reasoning, concept, steps)
+          refuting: this.findRefutingSteps(reasoning, concept, steps),
+          logicalForm,
+          inferenceRule
         });
       } else {
         // Fallback for non-conforming lines
@@ -958,6 +1002,99 @@ You excel at structured, logical thinking and always follow the specified format
     });
     
     return steps;
+  }
+
+  private extractPredicates(logicalNotation: string): Predicate[] {
+    const predicates: Predicate[] = [];
+    // Match predicate patterns like Temperature(current, 1.1°C)
+    const predicatePattern = /([A-Z][a-zA-Z]*)\(([^)]+)\)/g;
+    let match;
+    
+    while ((match = predicatePattern.exec(logicalNotation)) !== null) {
+      const [_, symbol, argsStr] = match;
+      const args = argsStr.split(',').map(arg => arg.trim());
+      predicates.push({
+        symbol,
+        arity: args.length,
+        arguments: args
+      });
+    }
+    
+    return predicates;
+  }
+
+  private extractQuantifiers(logicalNotation: string): Quantifier[] {
+    const quantifiers: Quantifier[] = [];
+    // Match quantifier patterns like ∀x or ∃y
+    const quantifierPattern = /(∀|∃)([a-z])/g;
+    let match;
+    
+    while ((match = quantifierPattern.exec(logicalNotation)) !== null) {
+      const [_, type, variable] = match;
+      quantifiers.push({
+        type: type === '∀' ? 'universal' : 'existential',
+        variable,
+        scope: this.generateId('scope')
+      });
+    }
+    
+    return quantifiers;
+  }
+
+  private extractConnectives(logicalNotation: string): LogicalConnective[] {
+    const connectives: LogicalConnective[] = [];
+    // Map symbols to connective types
+    const connectiveMap: Record<string, LogicalConnective['type']> = {
+      '∧': 'and',
+      '∨': 'or',
+      '¬': 'not',
+      '→': 'implies',
+      '↔': 'iff',
+      '⊃': 'implies'
+    };
+    
+    Object.entries(connectiveMap).forEach(([symbol, type]) => {
+      if (logicalNotation.includes(symbol)) {
+        connectives.push({
+          type,
+          operands: [] // Would need more sophisticated parsing for operands
+        });
+      }
+    });
+    
+    return connectives;
+  }
+
+  private matchInferenceRule(type: string, logicalNotation: string, previousSteps: ReasoningStep[]): InferenceRule | undefined {
+    // Check for common inference patterns
+    if (type === 'DEDUCTION' && logicalNotation.includes('→')) {
+      // Check for modus ponens pattern
+      if (previousSteps.length >= 2) {
+        const hasImplication = previousSteps.some(s => 
+          s.logicalForm?.formalNotation.includes('→')
+        );
+        if (hasImplication) {
+          return COMMON_INFERENCE_RULES.find(r => r.name === 'Modus Ponens');
+        }
+      }
+      
+      // Check for hypothetical syllogism
+      const implicationCount = previousSteps.filter(s => 
+        s.logicalForm?.formalNotation.includes('→')
+      ).length;
+      if (implicationCount >= 2) {
+        return COMMON_INFERENCE_RULES.find(r => r.name === 'Hypothetical Syllogism');
+      }
+    }
+    
+    // Check for universal instantiation
+    if (logicalNotation.includes('∀') && previousSteps.some(s => 
+      s.logicalForm?.formalNotation.includes('∀')
+    )) {
+      return COMMON_INFERENCE_RULES.find(r => r.name === 'Universal Instantiation');
+    }
+    
+    return undefined;
   }
 
   private inferReasoningType(content: string, capability: AgentCapability): any {
@@ -983,7 +1120,8 @@ You excel at structured, logical thinking and always follow the specified format
       'ANALYSIS': 'analogy',  // Map ANALYSIS to analogy
       'PREDICTION': 'prediction',
       'HYPOTHESIS': 'abduction',  // Map HYPOTHESIS to abduction
-      'CONCLUSION': 'synthesis'  // Map CONCLUSION to synthesis
+      'CONCLUSION': 'synthesis',  // Map CONCLUSION to synthesis
+      'SYNTHESIS': 'synthesis'   // Also map SYNTHESIS directly
     };
     
     return typeMap[type.toUpperCase()] || 'inference';
@@ -1192,11 +1330,41 @@ You excel at structured, logical thinking and always follow the specified format
   }
 
   private analyzeLogicalStructure(steps: ReasoningStep[]): any {
+    const premises: string[] = [];
+    const inferences: string[] = [];
+    const conclusions: string[] = [];
+    const assumptions: string[] = [];
+    
+    steps.forEach(step => {
+      switch (step.type) {
+        case 'observation':
+          premises.push(step.id);
+          break;
+        case 'inference':
+          inferences.push(step.id);
+          break;
+        case 'deduction':
+        case 'synthesis':
+          conclusions.push(step.id);
+          break;
+        case 'abduction':
+        case 'prediction':
+          if (step.supporting.length === 0) {
+            assumptions.push(step.id);
+          } else {
+            inferences.push(step.id);
+          }
+          break;
+        default:
+          inferences.push(step.id);
+      }
+    });
+    
     return {
-      premises: steps.filter(s => s.type === 'observation').map(s => s.id),
-      inferences: steps.filter(s => s.type === 'inference').map(s => s.id),
-      conclusions: steps.filter(s => s.type === 'deduction').map(s => s.id),
-      assumptions: [] // Would need more  analysis
+      premises,
+      inferences,
+      conclusions,
+      assumptions
     };
   }
 
