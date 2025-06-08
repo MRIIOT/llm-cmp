@@ -34,10 +34,10 @@ export class SemanticFeatureExtractor {
       const prompt = this.buildExtractionPrompt(text);
       
       const response = await this.llmInterface({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-3.5-turbo', // More reliable for JSON generation
         prompt: prompt,
         systemPrompt: this.getSystemPrompt(),
-        temperature: this.temperature,
+        temperature: 0.3, // Lower temperature for more consistent output
         maxTokens: this.maxTokens,
         metadata: { 
           purpose: 'semantic_feature_extraction',
@@ -47,11 +47,9 @@ export class SemanticFeatureExtractor {
 
       return this.parseFeatures(response.content, text);
     } catch (error) {
-      throw new SemanticEncodingException(
-        SemanticEncodingError.LLM_EXTRACTION_FAILED,
-        `Failed to extract semantic features: ${error instanceof Error ? error.message : String(error)}`,
-        { text, error }
-      );
+      // If LLM fails, use fallback immediately
+      console.warn('LLM extraction error, using fallback:', error);
+      return this.extractFallbackFeatures(text);
     }
   }
 
@@ -63,47 +61,50 @@ export class SemanticFeatureExtractor {
 
 TEXT: "${text}"
 
-Provide a JSON response with:
+Return ONLY a valid JSON object (no markdown, no explanation) with this exact structure:
 {
-  "concepts": [3-7 key concepts/entities, most important first],
-  "categories": [2-4 high-level categories like "technology", "prediction", "analysis"],
+  "concepts": ["concept1", "concept2", "concept3"],
+  "categories": ["category1", "category2"],
   "attributes": {
-    "abstractness": 0-1,      // How abstract vs concrete
-    "specificity": 0-1,       // How specific vs general  
-    "technicality": 0-1,      // Technical complexity
-    "certainty": 0-1,         // Certainty level expressed
-    "actionability": 0-1,     // Action-oriented vs descriptive
-    "temporality": 0-1        // Past/present/future focus
+    "abstractness": 0.5,
+    "specificity": 0.5,
+    "technicality": 0.5,
+    "certainty": 0.5,
+    "actionability": 0.5,
+    "temporality": 0.5
   },
-  "relationships": [key relationships like "analyzes", "predicts", "compares"],
-  "intent": "question|statement|command|analysis",
-  "complexity": 0-1,
-  "temporalAspect": true/false
+  "relationships": ["relationship1", "relationship2"],
+  "intent": "statement",
+  "complexity": 0.5,
+  "temporalAspect": false
 }
 
-IMPORTANT:
-- Be consistent across similar queries
-- Focus on semantic meaning, not exact words
-- Concepts should be single words or short phrases
-- Categories should be broad domains
-- Relationships should be verbs that connect concepts
-- All numeric values must be between 0 and 1
-- Return ONLY valid JSON, no additional text`;
+Requirements:
+- concepts: 3-7 key concepts as strings
+- categories: 2-4 broad categories as strings  
+- attributes: all values must be numbers between 0 and 1
+- relationships: action verbs as strings
+- intent: must be one of: "question", "statement", "command", "analysis"
+- complexity: number between 0 and 1
+- temporalAspect: boolean true or false
+
+CRITICAL: Return ONLY the JSON object, no other text.`;
   }
 
   /**
    * Get the system prompt for semantic analysis
    */
   private getSystemPrompt(): string {
-    return `You are a semantic analysis expert. Extract consistent semantic features from text for neural encoding.
+    return `You are a semantic analysis expert that ALWAYS returns valid JSON.
 
-Key principles:
-1. Consistency: Similar texts should produce similar features
-2. Precision: Extract the most salient semantic information
-3. Structure: Follow the exact JSON format requested
-4. Normalization: All numeric values between 0-1
+CRITICAL RULES:
+1. Return ONLY a JSON object, no markdown, no explanation, no extra text
+2. Use double quotes for all strings
+3. No trailing commas
+4. All numeric values must be actual numbers between 0 and 1
+5. Boolean values must be true or false (not "true" or "false")
 
-Focus on meaning and intent rather than surface-level word matching.`;
+Your task is to extract semantic features from text for neural encoding. Focus on meaning and intent rather than exact words.`;
   }
 
   /**
@@ -111,13 +112,39 @@ Focus on meaning and intent rather than surface-level word matching.`;
    */
   private parseFeatures(content: string, originalText: string): SemanticFeatures {
     try {
-      // Extract JSON from the response (in case there's extra text)
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      // Clean the content to extract JSON
+      let jsonContent = content.trim();
+      
+      // Remove markdown code blocks if present
+      jsonContent = jsonContent.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+      
+      // Try to find JSON object in the content
+      const jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        throw new Error('No JSON found in response');
+        // If no JSON found, try the whole content
+        jsonContent = content;
+      } else {
+        jsonContent = jsonMatch[0];
       }
-
-      const parsed = JSON.parse(jsonMatch[0]);
+      
+      // Clean up common JSON issues
+      // Remove trailing commas
+      jsonContent = jsonContent.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+      
+      // Remove comments
+      jsonContent = jsonContent.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+      
+      let parsed;
+      try {
+        parsed = JSON.parse(jsonContent);
+      } catch (parseError) {
+        // If parsing still fails, try to fix common issues
+        // Replace single quotes with double quotes
+        jsonContent = jsonContent.replace(/'/g, '"');
+        
+        // Try parsing again
+        parsed = JSON.parse(jsonContent);
+      }
       
       // Validate and normalize the features
       const features: SemanticFeatures = {
@@ -132,11 +159,9 @@ Focus on meaning and intent rather than surface-level word matching.`;
 
       return features;
     } catch (error) {
-      throw new SemanticEncodingException(
-        SemanticEncodingError.INVALID_FEATURES,
-        `Failed to parse semantic features: ${error instanceof Error ? error.message : String(error)}`,
-        { content, originalText, error }
-      );
+      // If all parsing attempts fail, use fallback
+      console.warn('Failed to parse LLM response, using fallback features:', error);
+      return this.extractFallbackFeatures(originalText);
     }
   }
 
@@ -268,30 +293,51 @@ Focus on meaning and intent rather than surface-level word matching.`;
     const words = text.toLowerCase().split(/\s+/).filter(w => w.length > 3);
     const uniqueWords = Array.from(new Set(words));
     
+    // Extract key concepts by finding important words
+    const importantWords = uniqueWords
+      .filter(w => !['this', 'that', 'what', 'which', 'when', 'where', 'have', 'been', 'will', 'from', 'with'].includes(w))
+      .slice(0, 7);
+    
     // Simple heuristics
-    const isQuestion = text.includes('?') || text.toLowerCase().startsWith('what') || 
-                      text.toLowerCase().startsWith('how') || text.toLowerCase().startsWith('why');
+    const isQuestion = text.includes('?') || /^(what|how|why|when|where|who|which)/i.test(text.trim());
+    const isCommand = /^(create|design|build|make|analyze|evaluate|assess)/i.test(text.trim());
+    const isAnalysis = text.toLowerCase().includes('analyze') || text.toLowerCase().includes('evaluate') || 
+                      text.toLowerCase().includes('assess') || text.toLowerCase().includes('consider');
     
     const hasNumbers = /\d/.test(text);
     const hasTechnicalTerms = words.some(w => 
-      w.includes('_') || w.includes('-') || w.length > 10
+      w.includes('_') || w.includes('-') || w.length > 10 || 
+      ['ai', 'technology', 'system', 'data', 'algorithm', 'model'].includes(w)
     );
     
+    // Determine categories based on content
+    const categories: string[] = ['general'];
+    if (hasTechnicalTerms || text.toLowerCase().includes('technolog')) categories.push('technology');
+    if (text.toLowerCase().includes('employ') || text.toLowerCase().includes('work')) categories.push('economics');
+    if (text.toLowerCase().includes('social') || text.toLowerCase().includes('ethic')) categories.push('society');
+    if (isAnalysis) categories.push('analysis');
+    
+    // Extract relationships (verbs)
+    const verbs = words.filter(w => 
+      ['analyze', 'impact', 'affect', 'change', 'create', 'develop', 'consider', 'evaluate'].some(v => w.includes(v))
+    ).slice(0, 5);
+    
     return {
-      concepts: uniqueWords.slice(0, 5),
-      categories: ['general', 'text'],
+      concepts: importantWords.length > 0 ? importantWords : ['general', 'query', 'analysis'],
+      categories: categories.slice(0, 4),
       attributes: {
-        abstractness: 0.5,
-        specificity: Math.min(words.length / 20, 1),
+        abstractness: text.toLowerCase().includes('concept') || text.toLowerCase().includes('theor') ? 0.8 : 0.4,
+        specificity: uniqueWords.length > 20 ? 0.7 : 0.3,
         technicality: hasTechnicalTerms ? 0.7 : 0.3,
         certainty: isQuestion ? 0.3 : 0.7,
-        actionability: text.includes('do') || text.includes('make') ? 0.7 : 0.3,
-        temporality: text.includes('will') || text.includes('future') ? 0.8 : 0.3
+        actionability: isCommand || verbs.length > 0 ? 0.7 : 0.3,
+        temporality: text.includes('future') || text.includes('will') || text.includes('next') ? 0.8 : 0.3
       },
-      relationships: [],
-      intent: isQuestion ? 'question' : 'statement',
-      complexity: Math.min(words.length / 50, 1),
-      temporalAspect: text.includes('when') || text.includes('time') || hasNumbers
+      relationships: verbs,
+      intent: isQuestion ? 'question' : isCommand ? 'command' : isAnalysis ? 'analysis' : 'statement',
+      complexity: Math.min(words.length / 30, 1),
+      temporalAspect: text.includes('when') || text.includes('time') || text.includes('decade') || 
+                     text.includes('year') || text.includes('future') || hasNumbers
     };
   }
 }

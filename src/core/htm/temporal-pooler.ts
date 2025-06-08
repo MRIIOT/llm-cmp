@@ -925,16 +925,16 @@ export function createDefaultTemporalPoolerConfig(
 ): TemporalPoolerConfig {
   return {
     cellsPerColumn: 32,
-    activationThreshold: 13,
-    learningThreshold: 10,
+    activationThreshold: 8,  // REDUCED: More realistic for multi-column patterns (was 13)
+    learningThreshold: 6,    // REDUCED: Lower threshold to start learning sooner (was 10) 
     maxSegmentsPerCell: 255,
     maxSynapsesPerSegment: 255,
-    initialPermanence: 0.51,  // Above connected threshold so new segments work immediately
+    initialPermanence: 0.55, // INCREASED: Higher initial strength for faster learning (was 0.51)
     connectedPermanence: 0.50,
-    permanenceIncrement: 0.10,
-    permanenceDecrement: 0.10,
+    permanenceIncrement: 0.12, // INCREASED: Faster strengthening (was 0.10)
+    permanenceDecrement: 0.08, // REDUCED: Slower weakening for stability (was 0.10)
     predictedSegmentDecrement: 0.002,
-    minThreshold: 8,
+    minThreshold: 6,        // REDUCED: Lower matching threshold (was 8)
     sampleSize: 20,
     permanenceThreshold: 0.1,
     maxNewSynapseCount: 20,

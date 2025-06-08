@@ -7,34 +7,33 @@
     "build": "tsc",
     "dev": "tsc && node dist/index.js",
     "start": "node dist/index.js",
-
     "test:htm:week1": "tsc && node dist/tests/htm/run-htm-tests.js week1",
     "test:htm:spatial": "tsc && node dist/tests/htm/run-htm-tests.js spatial",
     "test:htm:temporal": "tsc && node dist/tests/htm/run-htm-tests.js temporal",
     "test:htm:prediction": "tsc && node dist/tests/htm/run-htm-tests.js prediction",
     "test:htm:scale": "tsc && node dist/tests/htm/run-htm-tests.js scale",
-
     "test:agents": "tsc && node dist/tests/agents/run-agent-tests.js",
     "test:agents:quick": "tsc && node dist/tests/agents/run-agent-tests.js quick",
     "test:agents:week2": "tsc && node dist/tests/agents/run-agent-tests.js week2",
     "test:htm": "tsc && node dist/tests/htm/run-htm-tests.js",
     "test:htm:quick": "tsc && node dist/tests/htm/run-htm-tests.js quick",
-
     "test:evidence:week3": "tsc && node dist/tests/evidence/evidence-test-runner.js",
-    
     "test:semantic": "tsc && node dist/tests/test-semantic-encoding-openai.js",
     "test:semantic:normalizer": "tsc && node dist/core/semantic/concept-normalizer.test.js",
     "test:semantic:relationships": "tsc && node dist/core/semantic/semantic-relationship-manager.test.js",
     "test:semantic:columns": "tsc && node dist/core/semantic/adaptive-column-assigner.test.js",
     "test:semantic:phase2": "tsc && node dist/core/semantic/semantic-encoder-phase2.test.js",
     "test:semantic:all": "npm run test:semantic:normalizer && npm run test:semantic:relationships && npm run test:semantic:columns && npm run test:semantic:phase2",
-    
     "demo:providers": "tsc && node dist/demo/llm-provider-demo.js",
     "demo:providers-simple": "tsc && node dist/demo/llm-provider-demo-simple.js",
-    "demo:providers2": "tsc && node dist/demo/llm-provider-demo-v2.js"
+    "demo:providers2": "tsc && node dist/demo/llm-provider-demo-v2.js",
+    "demo:integrated": "tsc && node dist/demo/run-integrated-demo.js",
+    "demo:integrated-interactive": "tsc && node dist/demo/run-integrated-demo.js --interactive"
   },
   "dependencies": {
-    "axios": "^1.6.0"
+    "@types/dotenv": "^6.1.1",
+    "axios": "^1.6.0",
+    "dotenv": "^16.5.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

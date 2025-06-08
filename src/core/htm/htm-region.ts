@@ -87,6 +87,10 @@ export class HTMRegion {
   private learningHistory: number[];
   private performanceHistory: number[];
   
+  // Prediction tracking for accuracy measurement
+  private previousPredictions: boolean[] = [];
+  private predictionAccuracyHistory: number[] = [];
+  
   // Internal metrics
   private iteration: number;
   private lastResetTime: number;
@@ -98,6 +102,8 @@ export class HTMRegion {
     this.previousInputs = [];
     this.learningHistory = [];
     this.performanceHistory = [];
+    this.previousPredictions = [];
+    this.predictionAccuracyHistory = [];
     
     this.initializeComponents();
     this.initializeState();
@@ -170,11 +176,47 @@ export class HTMRegion {
     // Phase 1: Spatial Processing
     const spatialActivation = this.spatialPooler.compute(input, learn && this.config.enableSpatialLearning);
     
+    // Phase 1.5: Calculate prediction accuracy BEFORE updating temporal state
+    // Compare previous predictions with current active columns
+    let currentPredictionAccuracy = 0;
+    if (this.previousPredictions.length > 0 && this.iteration > 0) {
+      let correctPredictions = 0;
+      let totalActive = 0;
+      
+      for (let i = 0; i < spatialActivation.length; i++) {
+        if (spatialActivation[i]) {
+          totalActive++;
+          if (this.previousPredictions[i]) {
+            correctPredictions++;
+          }
+        }
+      }
+      
+      // Calculate precision: what fraction of predictions were correct
+      const totalPredicted = this.previousPredictions.filter(p => p).length;
+      const precision = totalPredicted > 0 ? correctPredictions / totalPredicted : 0;
+      
+      // Calculate recall: what fraction of active columns were predicted
+      const recall = totalActive > 0 ? correctPredictions / totalActive : 0;
+      
+      // F1 score combines precision and recall
+      currentPredictionAccuracy = (precision + recall) > 0 ? 
+        2 * (precision * recall) / (precision + recall) : 0;
+      
+      this.predictionAccuracyHistory.push(currentPredictionAccuracy);
+      if (this.predictionAccuracyHistory.length > 100) {
+        this.predictionAccuracyHistory.shift();
+      }
+    }
+    
     // Phase 2: Temporal Processing
     const temporalState = this.temporalPooler.compute(spatialActivation, learn && this.config.enableTemporalLearning);
     
-    // Phase 3: Generate Predictions
+    // Phase 3: Generate Predictions for NEXT timestep
     const predictions = this.temporalPooler.getPredictions();
+    
+    // Store current predictions for next iteration's accuracy calculation
+    this.previousPredictions = [...predictions.predictedColumns];
     
     // Phase 4: Update Column States
     this.updateColumnStates(spatialActivation, temporalState, predictions);
@@ -184,11 +226,17 @@ export class HTMRegion {
     
     // Phase 6: Update Learning Metrics
     if (learn) {
-      this.updateLearningMetrics();
+      this.updateLearningMetrics(currentPredictionAccuracy);
     }
     
-    // Phase 7: Create Output
-    const output = this.createOutput(spatialActivation, temporalState, predictions, multiStepPredictions);
+    // Phase 7: Create Output with corrected prediction accuracy
+    const output = this.createOutput(
+      spatialActivation, 
+      temporalState, 
+      predictions, 
+      multiStepPredictions,
+      currentPredictionAccuracy
+    );
     
     // Update state
     this.updateRegionState(spatialActivation, temporalState, predictions);
@@ -258,15 +306,26 @@ export class HTMRegion {
   /**
    * Update learning metrics and history
    */
-  private updateLearningMetrics(): void {
+  private updateLearningMetrics(currentPredictionAccuracy: number): void {
     const spatialMetrics = this.spatialPooler.getStabilityMetrics();
     const temporalMetrics = this.temporalPooler.getLearningMetrics();
     const regionStats = this.columnStateManager.getRegionStats();
     
-    // Calculate overall learning progress
+    // Use the properly calculated prediction accuracy
     const stabilityScore = spatialMetrics.stabilityScore;
-    const predictionAccuracy = temporalMetrics.predictionAccuracy;
-    const learningProgress = (stabilityScore + predictionAccuracy) / 2;
+    const predictionAccuracy = currentPredictionAccuracy;
+    
+    // Calculate learning progress as improvement over time
+    let learningProgress = 0;
+    if (this.predictionAccuracyHistory.length >= 10) {
+      // Compare recent accuracy with earlier accuracy
+      const recentAccuracy = this.predictionAccuracyHistory.slice(-5).reduce((a, b) => a + b, 0) / 5;
+      const earlierAccuracy = this.predictionAccuracyHistory.slice(0, 5).reduce((a, b) => a + b, 0) / 5;
+      learningProgress = Math.max(0, recentAccuracy - earlierAccuracy);
+    } else if (this.predictionAccuracyHistory.length > 0) {
+      // For early iterations, show current accuracy as progress
+      learningProgress = predictionAccuracy;
+    }
     
     this.learningHistory.push(learningProgress);
     this.performanceHistory.push(predictionAccuracy);
@@ -285,7 +344,8 @@ export class HTMRegion {
     spatialActivation: boolean[],
     temporalState: any,
     predictions: any,
-    multiStepPredictions: boolean[][]
+    multiStepPredictions: boolean[][],
+    predictionAccuracy: number
   ): HTMRegionOutput {
     const activeCells = Array.from(temporalState.activeCells) as number[];
     const predictiveCells = Array.from(temporalState.predictiveCells) as number[];
@@ -309,7 +369,7 @@ export class HTMRegion {
       temporalContext,
       semanticFeatures,
       sparsity,
-      predictionAccuracy: regionStats.avgReliability,
+      predictionAccuracy, // Use the properly calculated accuracy
       stability: regionStats.avgStability
     };
   }
@@ -401,9 +461,14 @@ export class HTMRegion {
     this.currentState.iteration = this.iteration;
     this.currentState.timestamp = Date.now();
     
-    // Update metrics
+    // Update metrics with temporal pooler metrics
+    const temporalMetrics = this.temporalPooler.getLearningMetrics();
     this.currentState.stabilityMetrics = this.columnStateManager.getRegionStats();
-    this.currentState.performanceMetrics = this.getPerformanceMetrics();
+    this.currentState.performanceMetrics = {
+      ...this.getPerformanceMetrics(),
+      totalSegments: temporalMetrics.totalSegments,
+      avgSynapsesPerSegment: temporalMetrics.avgSynapsesPerSegment
+    };
   }
 
   /**
@@ -421,16 +486,18 @@ export class HTMRegion {
     const temporalMetrics = this.temporalPooler.getLearningMetrics();
     const regionStats = this.columnStateManager.getRegionStats();
     
+    // Calculate average prediction accuracy from our tracked history
+    const avgPredictionAccuracy = this.predictionAccuracyHistory.length > 0 ?
+      this.predictionAccuracyHistory.reduce((a, b) => a + b, 0) / this.predictionAccuracyHistory.length : 0;
+    
     // Calculate learning rate based on recent improvement
     let learningRate = 0;
-    if (this.learningHistory.length > 10) {
-      const recent = this.learningHistory.slice(-10);
-      const older = this.learningHistory.slice(-20, -10);
-      if (older.length > 0) {
-        const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
-        const olderAvg = older.reduce((a, b) => a + b, 0) / older.length;
-        learningRate = Math.max(0, recentAvg - olderAvg);
-      }
+    if (this.predictionAccuracyHistory.length > 10) {
+      const recent = this.predictionAccuracyHistory.slice(-10);
+      const older = this.predictionAccuracyHistory.slice(0, 10);
+      const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
+      const olderAvg = older.reduce((a, b) => a + b, 0) / older.length;
+      learningRate = Math.max(0, recentAvg - olderAvg);
     }
     
     // Calculate efficiency (performance per computational cost)
@@ -440,7 +507,7 @@ export class HTMRegion {
     const adaptability = 1.0 - regionStats.burstingRate; // Lower bursting = better adaptation
     
     return {
-      predictionAccuracy: temporalMetrics.predictionAccuracy,
+      predictionAccuracy: avgPredictionAccuracy,
       learningRate,
       stability: regionStats.avgStability,
       sparsity: regionStats.avgSparsity,
@@ -528,6 +595,8 @@ export class HTMRegion {
     this.previousInputs = [];
     this.learningHistory = [];
     this.performanceHistory = [];
+    this.previousPredictions = [];
+    this.predictionAccuracyHistory = [];
     this.initializeState();
   }
 
@@ -570,11 +639,27 @@ export function createDefaultHTMRegionConfig(
     numColumns: columnCount,
     cellsPerColumn: 32,
     inputSize,
-    enableSpatialLearning: true,
+    enableSpatialLearning: true,  // CHANGED: Enable by default for better learning (was true already)
     enableTemporalLearning: true,
     learningMode: 'online',
     predictionSteps: 5,
     maxMemoryTraces: 100,
-    stabilityThreshold: 0.8
+    stabilityThreshold: 0.8,
+    
+    // Better spatial defaults for sequence learning
+    spatialConfig: {
+      sparsity: 0.08,  // ~8% of columns active (good for temporal learning)
+      boostStrength: 1.5,
+      dutyCyclePeriod: 100
+    },
+    
+    // Better temporal defaults aligned with new configuration
+    temporalConfig: {
+      activationThreshold: 8,     // Realistic threshold for multi-column patterns
+      learningThreshold: 6,       // Lower learning threshold for faster adaptation
+      initialPermanence: 0.55,    // Higher initial strength
+      permanenceIncrement: 0.12,  // Faster learning
+      permanenceDecrement: 0.08   // Slower forgetting
+    }
   };
 }

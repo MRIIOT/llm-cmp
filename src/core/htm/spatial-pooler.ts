@@ -614,12 +614,12 @@ export function createDefaultSpatialPoolerConfig(
     localAreaDensity: -1,
     numActiveColumnsPerInhArea: Math.floor(columnCount * 0.02),
     stimulusThreshold: 0,
-    synPermInactiveDec: 0.008,
-    synPermActiveInc: 0.05,
+    synPermInactiveDec: 0.005, // REDUCED: Slower weakening for stability (was 0.008)
+    synPermActiveInc: 0.08,    // INCREASED: Faster strengthening (was 0.05)
     synPermConnected: 0.10,
     minPctOverlapDutyCycle: 0.001,
     dutyCyclePeriod: 1000,
-    boostStrength: 0.0,
-    sparsity: 0.02 // 2% activation
+    boostStrength: 2.0,        // INCREASED: More aggressive boosting (was 0.0)
+    sparsity: 0.08            // INCREASED: More columns active (was 0.02)
   };
 }
