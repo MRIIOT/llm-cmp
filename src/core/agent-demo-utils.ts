@@ -326,7 +326,9 @@ function getEvidenceTypeIcon(type: string): string {
 
 function createConfidenceBar(confidence: number): string {
   const width = 20;
-  const filled = Math.round(confidence * width);
+  // Ensure confidence is within valid range [0, 1]
+  const clampedConfidence = Math.max(0, Math.min(1, confidence || 0));
+  const filled = Math.round(clampedConfidence * width);
   const empty = width - filled;
   return '[' + '█'.repeat(filled) + '░'.repeat(empty) + ']';
 }

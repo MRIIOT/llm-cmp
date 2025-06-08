@@ -252,33 +252,3 @@ Before completing any task, verify:
 [ ] Did I leverage existing documentation before reading files?
 
 **Remember**: The human is your senior collaborator and safety net. Consult them early and often. Include them in the task loop. Stay strictly on task. Be conservative, conscientious, and fearful of failure - this keeps you aligned with their expectations and prevents mistakes.
-
-## Project Feature: Logical Proof Verification
-
-The agent demo now includes formal logical proof verification for reasoning chains:
-
-### Components
-- **Types** (`src/types/index.ts`): Logical proof structures including premises, conclusions, inference rules, and validation results
-- **Validator** (`src/core/logical-proof-validator.ts`): Validates reasoning chains for logical consistency, detects contradictions, checks inference validity
-- **Visualization** (`src/core/agent-demo-utils.ts`): Integrated proof display showing premises, inference rules, conclusions, and validation results
-- **Agent** (`src/core/agent.ts`): Parses logical notation from LLM responses in format `[TYPE:CONCEPT|LogicalForm]`
-
-### Logical Notation
-- Predicates: `Temperature(x)`, `Causes(x,y)`
-- Quantifiers: `∀x` (for all), `∃x` (exists)
-- Connectives: `∧` (and), `∨` (or), `→` (implies), `¬` (not), `↔` (iff)
-- Entailment: `P, Q ⊢ R` (P and Q prove R)
-
-### Inference Rules Supported
-- Modus Ponens: P→Q, P ⊢ Q
-- Modus Tollens: P→Q, ¬Q ⊢ ¬P  
-- Hypothetical Syllogism: P→Q, Q→R ⊢ P→R
-- Disjunctive Syllogism: P∨Q, ¬P ⊢ Q
-- Universal Instantiation: ∀x P(x) ⊢ P(a)
-
-### Validation Checks
-- Premise justification and consistency
-- Inference rule validity
-- Contradiction detection
-- Circular reasoning detection
-- Completeness verification

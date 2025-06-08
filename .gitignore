@@ -10,7 +10,10 @@ yarn-error.log*
 
 .vscode/*
 
-# API configuration with keys
+# Environment variables and API configuration
+.env
+.env.local
+.env.production
 config.json
 
 # Build output

@@ -70,7 +70,9 @@ Return ONLY the canonical form, nothing else.`;
         systemPrompt: 'You are a linguistic expert specializing in concept normalization. Provide consistent canonical forms.',
         temperature: 0.1, // Very low for consistency
         maxTokens: 50,
-        metadata: {}
+        metadata: {
+          purpose: "normalize-single"
+        }
       });
 
       const normalized = response.content.trim();
@@ -135,7 +137,9 @@ Return a JSON array with the normalized forms in the same order, like:
           systemPrompt: 'You are a linguistic expert. Provide consistent canonical forms in JSON format.',
           temperature: 0.1,
           maxTokens: 200,
-          metadata: {}
+          metadata: {
+            purpose: "normalize-many"
+          }
         });
 
         const normalized = JSON.parse(response.content.trim()) as string[];

@@ -178,10 +178,10 @@ Your task is to extract semantic features from text for neural encoding. Focus o
       .map(c => c.trim().toLowerCase())
       .slice(0, 7); // Maximum 7 concepts
 
-    if (validated.length < 3) {
+    //if (validated.length < 3) {
       // If we don't have enough concepts, generate some defaults
-      return ['general', 'concept', 'query', ...validated].slice(0, 3);
-    }
+    //  return ['general', 'concept', 'query', ...validated].slice(0, 3);
+    //}
 
     return validated;
   }

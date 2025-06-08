@@ -13,7 +13,8 @@ import {
   AgentCapability,
   PerformanceMetric,
   BayesianBelief,
-  BeliefDistribution
+  BeliefDistribution,
+  LLMError
 } from '../types/index.js';
 import { 
   AgentVisualization,
@@ -24,109 +25,250 @@ import {
   visualizeTemporalContext,
   visualizeSemanticPosition
 } from './agent-demo-utils.js';
+import { OpenAIAdapter } from '../adapters/openai-adapter.js';
 
 /**
- * Mock LLM interface for demonstrations
- * Simulates different reasoning patterns based on query type
+ * OpenAI LLM interface for production use
+ * Uses GPT-3.5-turbo to generate structured reasoning
  */
-async function mockLLMInterface(request: LLMRequest): Promise<LLMResponse> {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  let content = '';
-  
+let openAIAdapter: OpenAIAdapter | null = null;
+
+async function openAILLMInterface(request: LLMRequest): Promise<LLMResponse> {
+  // Check for API key
+  if (!process.env.OPENAI_API_KEY) {
+    throw new LLMError(
+      'OPENAI_API_KEY environment variable is not set. Please set it in your Windows environment variables.',
+      'MISSING_API_KEY',
+      { provider: 'openai' }
+    );
+  }
+
+  // Initialize adapter if not already done
+  if (!openAIAdapter) {
+    openAIAdapter = new OpenAIAdapter({
+      apiKey: process.env.OPENAI_API_KEY,
+      defaultModel: 'gpt-3.5-turbo'
+    });
+  }
+
   // Check if this is a semantic feature extraction request
   if (request.metadata?.purpose === 'semantic_feature_extraction') {
-    // Return JSON for semantic encoding
     const text = request.prompt.match(/TEXT: "(.+)"/)?.[1] || request.prompt;
-    const isQuestion = text.includes('?');
-    const hasClimate = text.toLowerCase().includes('climate') || text.toLowerCase().includes('weather');
-    const hasQuantum = text.toLowerCase().includes('quantum');
-    const hasTech = text.toLowerCase().includes('ai') || text.toLowerCase().includes('intelligence');
     
-    const semanticFeatures = {
-      concepts: hasClimate ? 
-        ['climate', 'feedback_loops', 'temperature', 'greenhouse', 'systems'] :
-        hasQuantum ?
-        ['quantum', 'superposition', 'measurement', 'computing', 'states'] :
-        hasTech ?
-        ['intelligence', 'artificial', 'emergence', 'philosophy', 'implications'] :
-        ['analysis', 'patterns', 'systems', 'understanding', 'reasoning'],
-      categories: hasClimate ? 
-        ['environmental', 'science'] :
-        hasQuantum ?
-        ['physics', 'technology'] :
-        hasTech ?
-        ['technology', 'philosophy'] :
-        ['general', 'analysis'],
-      attributes: {
-        abstractness: hasQuantum || hasTech ? 0.8 : 0.5,
-        specificity: 0.7,
-        technicality: hasQuantum ? 0.9 : hasTech ? 0.8 : 0.6,
-        certainty: isQuestion ? 0.4 : 0.7,
-        actionability: 0.5,
-        temporality: hasClimate ? 0.8 : 0.4
-      },
-      relationships: hasClimate ?
-        ['causes', 'affects', 'accelerates'] :
-        hasQuantum ?
-        ['exists', 'collapses', 'enables'] :
-        ['emerges', 'implies', 'requires'],
-      intent: isQuestion ? 'question' : 'analysis',
-      complexity: 0.7,
-      temporalAspect: hasClimate || text.includes('future')
+    // Create a specific prompt for semantic feature extraction
+    const semanticPrompt = `Extract semantic features from the following text and return ONLY a JSON object with this exact structure:
+{
+  "concepts": [list of 5 main concepts as strings],
+  "categories": [list of 2-3 categories as strings],
+  "attributes": {
+    "abstractness": number between 0 and 1,
+    "specificity": number between 0 and 1,
+    "technicality": number between 0 and 1,
+    "certainty": number between 0 and 1,
+    "actionability": number between 0 and 1,
+    "temporality": number between 0 and 1
+  },
+  "relationships": [list of 3 relationship types as strings],
+  "intent": "question" or "analysis" or "statement",
+  "complexity": number between 0 and 1,
+  "temporalAspect": boolean
+}
+
+TEXT: "${text}"
+
+Return ONLY the JSON object, no explanation or additional text.`;
+
+    const semanticRequest: LLMRequest = {
+      ...request,
+      prompt: semanticPrompt,
+      systemPrompt: 'You are a semantic analysis system. Always respond with valid JSON only.',
+      temperature: 0.3,
+      maxTokens: 500
     };
-    
-    content = JSON.stringify(semanticFeatures);
-  } else {
-    // Return structured reasoning for regular queries
-    const prompt = request.prompt.toLowerCase();
-    
-    // Generate structured reasoning based on query type with logical forms
-    if (prompt.includes('climate') || prompt.includes('weather')) {
-      content = `[OBSERVATION:weather_data|Temperature(current, 1.1°C_above_baseline)] Current global temperature trends show a 1.1°C increase since pre-industrial times
-[INFERENCE:climate_impact|∀e(TemperatureRise(e) → IncreaseFrequency(ExtremeWeather, e))] Based on temperature rise, we can expect increased frequency of extreme weather events
-[ANALOGY:feedback_loops|IceAlbedo(x) ∧ Melting(x) → AcceleratesWarming(x)] Positive feedback mechanisms like ice-albedo effect accelerate warming trends
-[DEDUCTION:future_state|CurrentTrend(warming) ∧ NoIntervention → FutureTemperature(2-4°C)] Therefore, without intervention, temperatures will likely rise 2-4°C by 2100
-[PREDICTION:regional_effects|∀r(Arctic(r) → WarmingRate(r) > GlobalAverage)] Regional impacts will vary, with Arctic regions warming faster than global average
-[SYNTHESIS:action_needed|Limit(warming, 1.5°C) → RequiresAction(immediate)] Immediate action is required to limit warming to 1.5°C target`;
-    } else if (prompt.includes('quantum')) {
-      content = `[OBSERVATION:quantum_state|∃x(Quantum(x) ∧ Superposition(x))] Quantum particles exist in superposition until measured
-[ANALYSIS:wave_function|WaveFunction(ψ) → ProbabilityAmplitude(states)] The wave function describes probability amplitudes for different states
-[INFERENCE:measurement_effect|Measure(ψ) → Collapse(ψ, definite_state)] Measurement causes wave function collapse to definite state
-[HYPOTHESIS:many_worlds|∀ψ(Measurement(ψ) → ∃w(World(w) ∧ Realizes(w, ψ)))] One interpretation suggests all possibilities occur in parallel universes
-[DEDUCTION:computing_power|Superposition(qubits) → ProcessMultipleStates(simultaneous)] Therefore, quantum computers can process multiple states simultaneously
-[SYNTHESIS:applications|QuantumAdvantage(problem) ↔ ExponentialSpeedup(problem)] This enables exponential speedup for certain computational problems`;
-    } else if (prompt.includes('consciousness')) {
-      content = `[OBSERVATION:neural_activity|Correlates(consciousness, IntegratedNeuralActivity)] Consciousness correlates with integrated neural activity patterns
-[ANALYSIS:binding_problem|Distributed(processing) ∧ Unified(experience) → BindingProblem] The brain somehow binds distributed processing into unified experience
-[HYPOTHESIS:emergence_theory|ComplexIntegration(information) → Emerges(consciousness)] Consciousness may emerge from complex information integration
-[INFERENCE:subjective_nature|Subjective(experience) ∧ ¬Mechanistic(explanation)] Subjective experience remains difficult to explain mechanistically
-[PREDICTION:future_understanding|AdvancedImaging(brain) → MayReveal(mechanisms)] Advanced brain imaging may reveal consciousness mechanisms
-[SYNTHESIS:hard_problem|HardProblem(consciousness) → Unsolved] The "hard problem" of consciousness remains unsolved`;
-    } else {
-      // Generic reasoning pattern with logical forms
-      content = `[OBSERVATION:initial_state|State(query, "${request.prompt}")] The query "${request.prompt}" requires careful analysis
-[INFERENCE:key_factors|∃f(Factor(f) ∧ Relevant(f, query))] Several factors must be considered for a comprehensive response
-[ANALYSIS:implications|Implications(query) ⊃ Scope(immediate)] The implications extend beyond the immediate question
-[DEDUCTION:logical_outcome|AvailableInfo(x) → Conclude(patterns)] Based on available information, we can conclude certain patterns
-[PREDICTION:future_trends|EstablishedTrajectory(t) → FutureDevelopment(follows, t)] Future developments will likely follow established trajectories
-[SYNTHESIS:summary|∀v(Viewpoint(v) → Consider(v)) → BalancedPerspective] A balanced perspective considering multiple viewpoints is essential`;
+
+    const semanticResponse = await openAIAdapter.generateCompletion(semanticRequest);
+
+    // Debug: Log raw response if enabled
+    if (process.env.DEBUG_OPENAI_RESPONSES === 'true') {
+      console.log('\n[DEBUG] Raw OpenAI Request:');
+      console.log(semanticRequest.systemPrompt);
+      console.log(semanticRequest.prompt);
+      console.log('[/DEBUG]\n');
+
+      console.log('\n[DEBUG] Raw OpenAI Response:');
+      console.log(semanticResponse.content);
+      console.log('[/DEBUG]\n');
     }
+
+    return semanticResponse;
   }
-  
-  return {
-    content,
-    model: request.model,
-    usage: {
-      promptTokens: request.prompt.length / 4,
-      completionTokens: content.length / 4,
-      totalTokens: (request.prompt.length + content.length) / 4,
-      cost: 0.001
-    },
-    latency: 100,
-    metadata: { mock: true }
+
+  if (request.metadata?.purpose === 'normalize-many') {
+    const normalizeManyRequest: LLMRequest = {
+      ...request
+    };
+
+    const normalizeManyResponse = await openAIAdapter.generateCompletion(normalizeManyRequest);
+
+    // Debug: Log raw response if enabled
+    if (process.env.DEBUG_OPENAI_RESPONSES === 'true') {
+      console.log('\n[DEBUG] Raw OpenAI Request:');
+      console.log(normalizeManyRequest.systemPrompt);
+      console.log(normalizeManyRequest.prompt);
+      console.log('[/DEBUG]\n');
+
+      console.log('\n[DEBUG] Raw OpenAI Response:');
+      console.log(normalizeManyResponse.content);
+      console.log('[/DEBUG]\n');
+    }
+
+    return normalizeManyResponse;
+  }
+
+  if (request.metadata?.purpose === 'normalize-single') {
+    const normalizeSingleRequest: LLMRequest = {
+      ...request
+    };
+
+    const normalizeSingleResponse = await openAIAdapter.generateCompletion(normalizeSingleRequest);
+
+    // Debug: Log raw response if enabled
+    if (process.env.DEBUG_OPENAI_RESPONSES === 'true') {
+      console.log('\n[DEBUG] Raw OpenAI Request:');
+      console.log(normalizeSingleRequest.systemPrompt);
+      console.log(normalizeSingleRequest.prompt);
+      console.log('[/DEBUG]\n');
+
+      console.log('\n[DEBUG] Raw OpenAI Response:');
+      console.log(normalizeSingleResponse.content);
+      console.log('[/DEBUG]\n');
+    }
+
+    return normalizeSingleResponse;
+  }
+
+  // For regular queries, create a system prompt that enforces structured reasoning
+  const structuredReasoningPrompt = `You are a scientific reasoning system. For any question, provide a step-by-step analysis using this EXACT format:
+
+[TYPE:concept|logical_notation] explanation
+
+Types: OBSERVATION, INFERENCE, ANALYSIS, DEDUCTION, SYNTHESIS, PREDICTION
+
+Example question: "What causes ocean tides?"
+Example answer:
+[OBSERVATION:moon_gravity|Gravity(moon, earth)] The moon exerts gravitational force on Earth
+[OBSERVATION:water_mobility|Water(liquid, mobile)] Ocean water can move freely unlike solid land
+[INFERENCE:differential_pull|Distance(near) > Distance(far) → Force(near) > Force(far)] Closer water experiences stronger pull
+[DEDUCTION:bulge_formation|Differential_force → Water_bulge] This creates water bulges on near and far sides
+[SYNTHESIS:tidal_cycle|Earth_rotation + Bulges → Tides(12.5hr_cycle)] Earth's rotation through bulges creates tidal cycles
+
+Your answer MUST use this format. Answer the actual scientific question, not analyze the words.`;
+
+  const enhancedRequest: LLMRequest = {
+    ...request,
+    prompt: `Question: ${request.prompt}`, // Make it clear this is the question to answer
+    systemPrompt: structuredReasoningPrompt,
+    temperature: request.temperature ?? 0.3, // Even lower temperature for better consistency
+    maxTokens: request.maxTokens ?? 1500
   };
+
+  try {
+    const response = await openAIAdapter.generateCompletion(enhancedRequest);
+    
+    // Debug: Log raw response if enabled
+    if (process.env.DEBUG_OPENAI_RESPONSES === 'true') {
+      console.log('\n[DEBUG] Raw OpenAI Request:');
+      console.log(enhancedRequest.systemPrompt);
+      console.log(enhancedRequest.prompt);
+      console.log('[/DEBUG]\n');
+
+      console.log('\n[DEBUG] Raw OpenAI Response:');
+      console.log(response.content);
+      console.log('[/DEBUG]\n');
+    }
+
+    // Validate that the response follows the expected format
+    const lines = response.content.split('\n').filter(line => line.trim());
+    const properlyFormattedLines = lines.filter(line => 
+      line.match(/^\[[\w_]+:[\w_]+\|.+?\]/)
+    );
+    
+    // If less than 50% of lines are properly formatted, try to fix
+    if (properlyFormattedLines.length < lines.length * 0.5) {
+      console.warn(`Format compliance: ${properlyFormattedLines.length}/${lines.length} lines properly formatted`);
+      
+      // Try to fix common issues
+      const fixedContent = lines.map((line, idx) => {
+        line = line.trim();
+        
+        // Skip empty lines
+        if (!line) return '';
+        
+        // Check if line already has correct format
+        if (line.match(/^\[[\w_]+:[\w_]+\|.+?\]/)) {
+          return line;
+        }
+        
+        // Try to extract TYPE if it's mentioned
+        const typeMatch = line.match(/^(OBSERVATION|INFERENCE|ANALYSIS|DEDUCTION|HYPOTHESIS|PREDICTION|SYNTHESIS|ANALOGY|INDUCTION)[::\s]/i);
+        if (typeMatch) {
+          const type = typeMatch[1].toUpperCase();
+          const content = line.substring(typeMatch[0].length).trim();
+          const concept = `step_${idx}`;
+          const logicalForm = `Statement(${idx})`;
+          return `[${type}:${concept}|${logicalForm}] ${content}`;
+        }
+        
+        // Otherwise, try to infer type from content
+        const lowerLine = line.toLowerCase();
+        let type = 'OBSERVATION';
+        let concept = `step_${idx}`;
+        
+        if (lowerLine.includes('therefore') || lowerLine.includes('thus') || lowerLine.includes('conclude')) {
+          type = 'DEDUCTION';
+          concept = 'conclusion';
+        } else if (lowerLine.includes('based on') || lowerLine.includes('from this') || lowerLine.includes('infer')) {
+          type = 'INFERENCE';
+          concept = 'inference';
+        } else if (lowerLine.includes('predict') || lowerLine.includes('will') || lowerLine.includes('future')) {
+          type = 'PREDICTION';
+          concept = 'prediction';
+        } else if (lowerLine.includes('analysis') || lowerLine.includes('examining') || lowerLine.includes('consider')) {
+          type = 'ANALYSIS';
+          concept = 'analysis';
+        } else if (lowerLine.includes('similar') || lowerLine.includes('like') || lowerLine.includes('compared to')) {
+          type = 'ANALOGY';
+          concept = 'comparison';
+        } else if (lowerLine.includes('overall') || lowerLine.includes('summary') || lowerLine.includes('together')) {
+          type = 'SYNTHESIS';
+          concept = 'synthesis';
+        } else if (lowerLine.includes('observe') || lowerLine.includes('data') || lowerLine.includes('evidence')) {
+          type = 'OBSERVATION';
+          concept = 'observation';
+        }
+        
+        // Create a simple logical form
+        const logicalForm = `Statement(${concept})`;
+        
+        return `[${type}:${concept}|${logicalForm}] ${line}`;
+      }).filter(line => line.trim()).join('\n');
+
+      response.content = fixedContent;
+    }
+
+    return response;
+  } catch (error) {
+    // Re-throw with more context
+    if (error instanceof LLMError) {
+      throw error;
+    }
+    
+    throw new LLMError(
+      `OpenAI API call failed: ${error instanceof Error ? error.message : String(error)}`,
+      'OPENAI_API_ERROR',
+      { originalError: error }
+    );
+  }
 }
 
 /**
@@ -189,7 +331,7 @@ async function example1_basicQueryProcessing() {
   const query = "What are the primary feedback loops in climate change?";
   console.log(`Query: "${query}"\n`);
   
-  const message = await agent.processQuery(query, { domain: 'climate_science' }, mockLLMInterface);
+  const message = await agent.processQuery(query, { domain: 'climate_science' }, openAILLMInterface);
   
   // Display comprehensive reasoning chain visualization
   displayReasoningChain(message);
@@ -264,7 +406,7 @@ async function example2_temporalPatterns() {
   for (let i = 0; i < queries.length; i++) {
     console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     console.log(`Query ${i + 1}: "${queries[i]}"`);
-    const message = await agent.processQuery(queries[i], { sequence: i }, mockLLMInterface);
+    const message = await agent.processQuery(queries[i], { sequence: i }, openAILLMInterface);
     messages.push(message);
     
     // Show HTM state visualization
@@ -350,7 +492,7 @@ async function example3_bayesianBeliefs() {
     console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     console.log(`Evidence ${i + 1}: "${query}"`);
     
-    const message = await agent.processQuery(query, context, mockLLMInterface);
+    const message = await agent.processQuery(query, context, openAILLMInterface);
     
     // Show evidence visualization
     visualizeEvidenceGraph(message.content.evidence);
@@ -513,7 +655,7 @@ async function example4_adaptation() {
     console.log(`\n--- Query ${i + 1} (Difficulty: ${difficulty}) ---`);
     console.log(`"${query}"`);
     
-    const message = await agent.processQuery(query, { difficulty }, mockLLMInterface);
+    const message = await agent.processQuery(query, { difficulty }, openAILLMInterface);
     
     // Show performance metrics
     const performance = agent.getPerformanceHistory().slice(-1)[0];
@@ -605,7 +747,7 @@ async function example5_complexReasoning() {
   const message = await agent.processQuery(complexQuery, { 
     depth: 'deep',
     perspectives: ['technical', 'philosophical', 'societal']
-  }, mockLLMInterface);
+  }, openAILLMInterface);
   
   // Display full reasoning chain with graph
   displayReasoningChain(message);
@@ -767,6 +909,20 @@ async function runAgentDemo() {
   console.log('- Adaptive morphology');
   console.log('- Complex multi-step inference\n');
   
+  // Check for API key before starting
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('\n❌ Error: OPENAI_API_KEY environment variable is not set.');
+    console.error('\nTo set it in Windows:');
+    console.error('1. Open System Properties > Environment Variables');
+    console.error('2. Add a new variable: OPENAI_API_KEY = your-api-key');
+    console.error('3. Restart your terminal/IDE');
+    console.error('\nOr set it temporarily in PowerShell:');
+    console.error('$env:OPENAI_API_KEY="your-api-key"\n');
+    return;
+  }
+  
+  console.log('✅ Using OpenAI GPT-3.5-turbo for reasoning generation\n');
+  
   try {
     // Run examples sequentially
     await example1_basicQueryProcessing();
@@ -785,13 +941,22 @@ async function runAgentDemo() {
     
   } catch (error) {
     console.error('\n❌ Demo error:', error instanceof Error ? error.message : String(error));
+    
+    if (error instanceof LLMError && error.code === 'MISSING_API_KEY') {
+      console.error('\nPlease set the OPENAI_API_KEY environment variable and try again.');
+    } else if (error instanceof Error && error.message.includes('401')) {
+      console.error('\nAPI key appears to be invalid. Please check your OPENAI_API_KEY.');
+    } else if (error instanceof Error && error.message.includes('429')) {
+      console.error('\nRate limit exceeded. Please wait a moment and try again.');
+    }
+    
     console.error('Stack trace:', error instanceof Error ? error.stack : '');
   }
 }
 
 // Export for use in other demos
 export {
-  mockLLMInterface,
+  openAILLMInterface,
   displayAgentStats,
   runAgentDemo
 };

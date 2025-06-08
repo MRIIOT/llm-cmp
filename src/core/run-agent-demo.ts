@@ -3,7 +3,11 @@
  * Use this to execute the agent demonstration
  */
 
+import * as dotenv from 'dotenv';
 import { runAgentDemo } from './agent-demo.js';
+
+// Load environment variables
+dotenv.config();
 
 // Run the demo
 runAgentDemo()
