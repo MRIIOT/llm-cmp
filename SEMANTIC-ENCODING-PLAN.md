@@ -204,6 +204,303 @@ private initializeSemanticMappings(): void {
 }
 ```
 
+#### 2.3 Concept Normalization and Similarity Enhancement
+```typescript
+// Domain-agnostic concept normalization using LLM
+class ConceptNormalizer {
+  private normalizationCache: Map<string, string>;
+  private similarityCache: Map<string, Map<string, number>>;
+  
+  constructor(
+    private llmInterface: (request: LLMRequest) => Promise<LLMResponse>
+  ) {
+    this.normalizationCache = new Map();
+    this.similarityCache = new Map();
+  }
+  
+  // Normalize concepts using LLM to identify canonical forms
+  async normalize(concept: string): Promise<string> {
+    const lower = concept.toLowerCase().trim();
+    
+    if (this.normalizationCache.has(lower)) {
+      return this.normalizationCache.get(lower)!;
+    }
+    
+    // Use LLM to determine canonical form
+    const prompt = `Given the concept "${concept}", provide the most canonical/standard form.
+    
+    Rules:
+    - Use singular form unless inherently plural
+    - Use the most common technical term
+    - Expand common abbreviations
+    - Keep compound concepts together
+    
+    Return ONLY the canonical form, nothing else.`;
+    
+    const response = await this.llmInterface({
+      model: 'gpt-4',
+      prompt: prompt,
+      temperature: 0.1, // Very low for consistency
+      maxTokens: 50
+    });
+    
+    const normalized = response.content.trim().toLowerCase();
+    this.normalizationCache.set(lower, normalized);
+    
+    return normalized;
+  }
+  
+  // Calculate semantic similarity between concepts using LLM
+  async calculateSimilarity(concept1: string, concept2: string): Promise<number> {
+    const key = [concept1, concept2].sort().join('|');
+    
+    if (this.similarityCache.has(key)) {
+      return this.similarityCache.get(key)!.get('similarity') || 0;
+    }
+    
+    const prompt = `Rate the semantic similarity between these two concepts on a scale of 0.0 to 1.0:
+    
+    Concept 1: "${concept1}"
+    Concept 2: "${concept2}"
+    
+    Guidelines:
+    - 1.0 = identical or interchangeable concepts
+    - 0.8-0.9 = very similar, same domain
+    - 0.5-0.7 = related but distinct
+    - 0.2-0.4 = loosely related
+    - 0.0-0.1 = unrelated
+    
+    Return ONLY a number between 0.0 and 1.0`;
+    
+    const response = await this.llmInterface({
+      model: 'gpt-4',
+      prompt: prompt,
+      temperature: 0.1,
+      maxTokens: 10
+    });
+    
+    const similarity = parseFloat(response.content.trim()) || 0;
+    
+    if (!this.similarityCache.has(key)) {
+      this.similarityCache.set(key, new Map());
+    }
+    this.similarityCache.get(key)!.set('similarity', similarity);
+    
+    return similarity;
+  }
+}
+
+// Enhanced encoding with dynamic concept relationships
+class SemanticRelationshipManager {
+  private conceptGraph: Map<string, Set<{concept: string, weight: number}>>;
+  private conceptFrequency: Map<string, number>;
+  
+  constructor() {
+    this.conceptGraph = new Map();
+    this.conceptFrequency = new Map();
+  }
+  
+  // Learn relationships from observed co-occurrences
+  async updateRelationships(
+    features: SemanticFeatures,
+    normalizer: ConceptNormalizer
+  ): Promise<void> {
+    // Normalize all concepts
+    const normalizedConcepts = await Promise.all(
+      features.concepts.map(c => normalizer.normalize(c))
+    );
+    
+    // Update frequency tracking
+    normalizedConcepts.forEach(concept => {
+      const count = this.conceptFrequency.get(concept) || 0;
+      this.conceptFrequency.set(concept, count + 1);
+    });
+    
+    // Learn co-occurrence relationships
+    for (let i = 0; i < normalizedConcepts.length; i++) {
+      for (let j = i + 1; j < normalizedConcepts.length; j++) {
+        const concept1 = normalizedConcepts[i];
+        const concept2 = normalizedConcepts[j];
+        
+        // Calculate relationship weight based on positions
+        const distanceWeight = 1.0 / (1 + Math.abs(i - j));
+        
+        // Update bidirectional relationship
+        this.addRelationship(concept1, concept2, distanceWeight);
+        this.addRelationship(concept2, concept1, distanceWeight);
+      }
+    }
+  }
+  
+  private addRelationship(from: string, to: string, weight: number): void {
+    if (!this.conceptGraph.has(from)) {
+      this.conceptGraph.set(from, new Set());
+    }
+    
+    // Find existing relationship
+    const relationships = this.conceptGraph.get(from)!;
+    const existing = Array.from(relationships).find(r => r.concept === to);
+    
+    if (existing) {
+      // Update weight with exponential moving average
+      existing.weight = existing.weight * 0.7 + weight * 0.3;
+    } else {
+      relationships.add({concept: to, weight});
+    }
+  }
+  
+  // Get related concepts with weights
+  getRelatedConcepts(concept: string, threshold: number = 0.3): Array<{concept: string, weight: number}> {
+    const relationships = this.conceptGraph.get(concept);
+    if (!relationships) return [];
+    
+    return Array.from(relationships)
+      .filter(r => r.weight >= threshold)
+      .sort((a, b) => b.weight - a.weight);
+  }
+  
+  // Get concept importance based on frequency and relationships
+  getConceptImportance(concept: string): number {
+    const frequency = this.conceptFrequency.get(concept) || 0;
+    const maxFrequency = Math.max(...this.conceptFrequency.values()) || 1;
+    const freqScore = frequency / maxFrequency;
+    
+    const relationships = this.conceptGraph.get(concept);
+    const relationshipScore = relationships ? relationships.size / 10 : 0;
+    
+    return Math.min(freqScore * 0.6 + relationshipScore * 0.4, 1.0);
+  }
+}
+
+// Enhanced semantic column assignment
+class AdaptiveColumnAssigner {
+  private columnAssignments: Map<string, number[]>;
+  private columnUsage: Map<number, number>;
+  
+  constructor(private totalColumns: number) {
+    this.columnAssignments = new Map();
+    this.columnUsage = new Map();
+  }
+  
+  // Assign columns with semantic overlap for related concepts
+  async assignColumns(
+    concept: string,
+    relatedConcepts: Array<{concept: string, weight: number}>,
+    baseColumnCount: number
+  ): Promise<number[]> {
+    if (this.columnAssignments.has(concept)) {
+      return this.columnAssignments.get(concept)!;
+    }
+    
+    const columns = new Set<number>();
+    
+    // Generate base columns for this concept
+    const conceptHash = this.stableHash(concept);
+    const baseColumns = Math.floor(baseColumnCount * 0.7);
+    
+    for (let i = 0; i < baseColumns; i++) {
+      const col = (conceptHash + i * 97) % this.totalColumns;
+      columns.add(col);
+    }
+    
+    // Add overlapping columns from related concepts
+    const overlapColumns = Math.floor(baseColumnCount * 0.3);
+    
+    for (const related of relatedConcepts) {
+      if (this.columnAssignments.has(related.concept)) {
+        const relatedColumns = this.columnAssignments.get(related.concept)!;
+        const overlapCount = Math.floor(overlapColumns * related.weight);
+        
+        // Select columns from related concept based on usage
+        const candidateColumns = relatedColumns
+          .map(col => ({col, usage: this.columnUsage.get(col) || 0}))
+          .sort((a, b) => a.usage - b.usage)
+          .slice(0, overlapCount);
+        
+        candidateColumns.forEach(({col}) => columns.add(col));
+      }
+    }
+    
+    // Ensure we have the target number of columns
+    while (columns.size < baseColumnCount) {
+      const col = (conceptHash + columns.size * 53) % this.totalColumns;
+      columns.add(col);
+    }
+    
+    const columnArray = Array.from(columns).slice(0, baseColumnCount);
+    this.columnAssignments.set(concept, columnArray);
+    
+    // Update usage statistics
+    columnArray.forEach(col => {
+      this.columnUsage.set(col, (this.columnUsage.get(col) || 0) + 1);
+    });
+    
+    return columnArray;
+  }
+  
+  private stableHash(str: string): number {
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) + hash) + str.charCodeAt(i);
+    }
+    return Math.abs(hash);
+  }
+}
+
+// Integrated encoding with all enhancements
+private async encodeWithSemanticEnhancements(
+  features: SemanticFeatures,
+  normalizer: ConceptNormalizer,
+  relationshipManager: SemanticRelationshipManager,
+  columnAssigner: AdaptiveColumnAssigner,
+  numColumns: number
+): Promise<boolean[]> {
+  const encoding = new Array(numColumns).fill(false);
+  
+  // Update relationship graph with new features
+  await relationshipManager.updateRelationships(features, normalizer);
+  
+  // Process concepts with normalization and relationship awareness
+  const targetActive = Math.floor(numColumns * 0.02);
+  const conceptColumns = Math.floor(targetActive * 0.5); // 50% for concepts
+  
+  let activatedCount = 0;
+  
+  for (let i = 0; i < features.concepts.length && activatedCount < conceptColumns; i++) {
+    const concept = features.concepts[i];
+    const normalized = await normalizer.normalize(concept);
+    
+    // Get related concepts
+    const related = relationshipManager.getRelatedConcepts(normalized);
+    
+    // Calculate weight based on position and importance
+    const positionWeight = 1.0 - (i * 0.07);
+    const importanceWeight = relationshipManager.getConceptImportance(normalized);
+    const finalWeight = positionWeight * (0.7 + importanceWeight * 0.3);
+    
+    // Assign columns with semantic overlap
+    const columns = await columnAssigner.assignColumns(
+      normalized,
+      related,
+      Math.floor(30 * finalWeight) // 30 base columns
+    );
+    
+    // Activate columns
+    for (const col of columns) {
+      if (activatedCount < conceptColumns) {
+        encoding[col] = true;
+        activatedCount++;
+      }
+    }
+  }
+  
+  // Continue with categories, attributes, etc...
+  // (rest of encoding logic remains the same)
+  
+  return encoding;
+}
+```
+
 ### Phase 3: Integration with HTM
 
 #### 3.1 Enhanced Temporal Context Update

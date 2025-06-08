@@ -139,8 +139,13 @@ export class SemanticFeatureCache {
     let bestMatch: SemanticCacheEntry | null = null;
     let bestSimilarity = 0;
 
+    // Extract content words for better similarity matching
+    const contentWords1 = this.extractContentWords(normalizedText);
+
     for (const entry of this.cache.values()) {
-      const similarity = this.calculateSimilarity(normalizedText, entry.normalizedText);
+      const contentWords2 = this.extractContentWords(entry.normalizedText);
+      const similarity = this.calculateContentSimilarity(contentWords1, contentWords2);
+      
       if (similarity > this.config.similarityThreshold && similarity > bestSimilarity) {
         bestMatch = entry;
         bestSimilarity = similarity;
@@ -148,6 +153,41 @@ export class SemanticFeatureCache {
     }
 
     return bestMatch;
+  }
+
+  /**
+   * Extract content words (remove stop words)
+   */
+  private extractContentWords(text: string): Set<string> {
+    const stopWords = new Set([
+      'the', 'is', 'at', 'which', 'on', 'a', 'an', 'and', 'or', 'but',
+      'in', 'with', 'to', 'for', 'of', 'as', 'by', 'that', 'this',
+      'it', 'from', 'be', 'are', 'been', 'being', 'have', 'has', 'had',
+      'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may',
+      'might', 'must', 'can', 'what', 'how', 'when', 'where', 'who',
+      'why', 'their', 'them', 'they', 'then', 'there', 'these', 'those'
+    ]);
+    
+    const words = text.split(' ').filter(word => 
+      word.length > 2 && !stopWords.has(word)
+    );
+    
+    return new Set(words);
+  }
+
+  /**
+   * Calculate similarity between content words
+   */
+  private calculateContentSimilarity(words1: Set<string>, words2: Set<string>): number {
+    if (words1.size === 0 || words2.size === 0) return 0;
+    
+    const intersection = new Set([...words1].filter(x => words2.has(x)));
+    const union = new Set([...words1, ...words2]);
+    
+    // Use Dice coefficient for better similarity (more forgiving than Jaccard)
+    const similarity = (2 * intersection.size) / (words1.size + words2.size);
+    
+    return similarity;
   }
 
   /**
@@ -160,7 +200,18 @@ export class SemanticFeatureCache {
     const intersection = new Set([...words1].filter(x => words2.has(x)));
     const union = new Set([...words1, ...words2]);
     
-    return intersection.size / union.size;
+    const similarity = intersection.size / union.size;
+    
+    // Debug logging for testing
+    if (text1.includes('quantum') && text2.includes('quantum')) {
+      console.log(`  Cache similarity check:`);
+      console.log(`    Text 1: "${text1.substring(0, 50)}..."`);
+      console.log(`    Text 2: "${text2.substring(0, 50)}..."`);
+      console.log(`    Common words: ${Array.from(intersection).join(', ')}`);
+      console.log(`    Similarity: ${similarity.toFixed(2)} (threshold: ${this.config.similarityThreshold})`);
+    }
+    
+    return similarity;
   }
 
   /**

@@ -94,6 +94,24 @@ export interface SemanticEncodingConfig {
   
   /** Maximum tokens for LLM response */
   llmMaxTokens: number;
+  
+  /** Enable Phase 2 enhancements */
+  enablePhase2Enhancements: boolean;
+  
+  /** Overlap ratio for adaptive column assignment (0-1) */
+  columnOverlapRatio: number;
+  
+  /** Decay factor for relationship weights */
+  relationshipDecayFactor: number;
+  
+  /** Minimum weight threshold for relationships */
+  minRelationshipWeight: number;
+  
+  /** Enable concept normalization */
+  enableConceptNormalization: boolean;
+  
+  /** Enable relationship tracking */
+  enableRelationshipTracking: boolean;
 }
 
 /**
@@ -102,11 +120,17 @@ export interface SemanticEncodingConfig {
 export const DEFAULT_SEMANTIC_CONFIG: SemanticEncodingConfig = {
   numColumns: 2048,
   sparsity: 0.02, // 2% sparsity
-  columnsPerConcept: 20,
+  columnsPerConcept: 30, // Increased from 20 for more overlap
   maxCacheSize: 1000,
-  similarityThreshold: 0.85,
+  similarityThreshold: 0.50, // Reduced from 0.70 for better cache hits with Dice coefficient
   llmTemperature: 0.3,
-  llmMaxTokens: 500
+  llmMaxTokens: 500,
+  enablePhase2Enhancements: true, // Phase 2 enhancements enabled by default
+  columnOverlapRatio: 0.3, // 30% overlap for related concepts
+  relationshipDecayFactor: 0.95,
+  minRelationshipWeight: 0.1,
+  enableConceptNormalization: true,
+  enableRelationshipTracking: true
 };
 
 /**

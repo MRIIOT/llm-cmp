@@ -12,5 +12,6 @@
     "inlineSources": true,
     "declaration": false
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": []
 }

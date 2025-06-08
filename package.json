@@ -22,6 +22,13 @@
 
     "test:evidence:week3": "tsc && node dist/tests/evidence/evidence-test-runner.js",
     
+    "test:semantic": "tsc && node dist/tests/test-semantic-encoding-openai.js",
+    "test:semantic:normalizer": "tsc && node dist/core/semantic/concept-normalizer.test.js",
+    "test:semantic:relationships": "tsc && node dist/core/semantic/semantic-relationship-manager.test.js",
+    "test:semantic:columns": "tsc && node dist/core/semantic/adaptive-column-assigner.test.js",
+    "test:semantic:phase2": "tsc && node dist/core/semantic/semantic-encoder-phase2.test.js",
+    "test:semantic:all": "npm run test:semantic:normalizer && npm run test:semantic:relationships && npm run test:semantic:columns && npm run test:semantic:phase2",
+    
     "demo:providers": "tsc && node dist/demo/llm-provider-demo.js",
     "demo:providers-simple": "tsc && node dist/demo/llm-provider-demo-simple.js",
     "demo:providers2": "tsc && node dist/demo/llm-provider-demo-v2.js"

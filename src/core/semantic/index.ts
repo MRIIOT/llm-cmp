@@ -7,3 +7,6 @@ export * from './semantic-types.js';
 export * from './semantic-feature-extractor.js';
 export * from './semantic-feature-cache.js';
 export * from './semantic-encoder.js';
+export * from './concept-normalizer.js';
+export * from './semantic-relationship-manager.js';
+export * from './adaptive-column-assigner.js';

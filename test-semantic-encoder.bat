@@ -1,6 +1,0 @@
-@echo off
-echo Building project...
-call npm run build
-echo.
-echo Running semantic encoder test...
-node dist/core/semantic/semantic-encoder.test.js
