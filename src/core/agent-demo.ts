@@ -397,6 +397,8 @@ async function example2_temporalPatterns() {
     "What causes market volatility?",
     "How do interest rates affect market volatility?",
     "Can we predict market volatility patterns?",
+    //"How to bake a chocolate cake?",
+    "What does local currency suggest?",
     "What indicators suggest increasing volatility?"
   ];
   
@@ -411,6 +413,12 @@ async function example2_temporalPatterns() {
     
     // Show HTM state visualization
     visualizeHTMState(message.metadata.htmState);
+    
+    // Show predictions for next step (if any)
+    if (message.metadata.htmState.predictedColumns.length > 0 && i < queries.length - 1) {
+      console.log(`\n   🔮 HTM Predicts for next query: ${message.metadata.htmState.predictedColumns.length} columns will activate`);
+      console.log(`   Next query will be: "${queries[i + 1]}"`);
+    }
     
     // Show temporal context
     visualizeTemporalContext(message.content.temporalContext);
@@ -925,11 +933,11 @@ async function runAgentDemo() {
   
   try {
     // Run examples sequentially
-    await example1_basicQueryProcessing();
+    //await example1_basicQueryProcessing();
     await example2_temporalPatterns();
-    await example3_bayesianBeliefs();
-    await example4_adaptation();
-    await example5_complexReasoning();
+    //await example3_bayesianBeliefs();
+    //await example4_adaptation();
+    //await example5_complexReasoning();
     
     console.log('\n\n✅ Demo completed successfully!');
     console.log('\nKey Takeaways:');

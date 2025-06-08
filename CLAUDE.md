@@ -252,3 +252,10 @@ Before completing any task, verify:
 [ ] Did I leverage existing documentation before reading files?
 
 **Remember**: The human is your senior collaborator and safety net. Consult them early and often. Include them in the task loop. Stay strictly on task. Be conservative, conscientious, and fearful of failure - this keeps you aligned with their expectations and prevents mistakes.
+
+## Project Technical Notes
+
+### TypeScript Configuration
+- The project uses CommonJS modules (`"module": "commonjs"` in tsconfig.json)
+- ES module features like `import.meta` are not available in CommonJS
+- Use `if (require.main === module)` instead of `if (import.meta.url === `file://${process.argv[1]}`)`
