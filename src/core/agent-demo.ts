@@ -360,7 +360,74 @@ async function example1_basicQueryProcessing() {
 async function example2_temporalPatterns() {
   console.log('\n\n=== Example 2: Temporal Pattern Recognition with Hierarchical Encoding ===\n');
   console.log('✨ NEW: Using hierarchical hash encoding for natural concept overlap\n');
-  
+
+  const domainOptimizedConfig: AgentConfig = {
+    id: 'agent_domain_optimized',
+    name: 'Domain-Coherent Agent',
+    description: 'Optimized for recognizing patterns within similar domains',
+    initialCapabilities: [
+      {
+        id: 'domain_analysis',
+        name: 'Domain Analysis',
+        description: 'Specialized in domain-coherent pattern recognition',
+        strength: 0.9,
+        adaptationRate: 0.15, // Moderate adaptation to maintain domain stability
+        specializations: ['domain_recognition', 'pattern_matching', 'semantic_similarity'],
+        morphology: {
+          structure: {
+            type: 'hierarchical_network',
+            layers: 4,
+            crossConnections: true // Better cross-concept connections
+          },
+          connections: new Map([
+            ['pattern_recognition', 0.95],
+            ['semantic_analysis', 0.9],
+            ['temporal_learning', 0.85]
+          ]),
+          emergentProperties: ['domain_coherence', 'concept_clustering'],
+          adaptationHistory: []
+        },
+        lastUsed: new Date(),
+        performanceHistory: []
+      }
+    ],
+    config: {
+      agents: {
+        adaptationRate: 0.15, // Moderate to maintain stability
+        minAgents: 5,         // More agents for better coverage
+        maxAgents: 20,        // Allow growth for complex domains
+        baseCapabilities: ['reasoning', 'analysis', 'pattern_recognition'],
+        evolutionEnabled: true
+      },
+      htm: {
+        columnCount: 4096,     // Larger for better pattern discrimination
+        cellsPerColumn: 20,    // More cells for richer representations
+        learningRadius: 2048,  // Wider radius for broader pattern detection
+        learningRate: 0.15,    // Slightly higher for faster domain learning
+        maxSequenceLength: 200 // Longer memory for domain context
+      },
+      bayesian: {
+        uncertaintyThreshold: 0.2, // Lower threshold = more confident in-domain
+        priorStrength: 0.2,        // Stronger priors for domain consistency
+        updatePolicy: 'adaptive',
+        conflictResolution: 'argumentation' // Better for nuanced domain reasoning
+      },
+      semantic: {
+        enableHierarchicalEncoding: true,    // Critical for concept overlap
+        enablePhase2Enhancements: true,      // Advanced semantic features
+        enableConceptNormalization: true,    // Normalize similar concepts
+        enableRelationshipTracking: true,    // Track concept co-occurrence
+        // Additional parameters you might add:
+        //conceptOverlapThreshold: 0.25,       // 25% overlap = related
+        //domainCoherenceWeight: 0.8,          // Weight domain consistency higher
+        //semanticDecayRate: 0.05              // Slow decay for domain memory
+      }
+    }
+  };
+
+  const agent = new Agent(domainOptimizedConfig);
+
+  /*
   const agent = new Agent({
     id: 'agent_temporal_002',
     name: 'Temporal Pattern Analyzer',
@@ -400,7 +467,8 @@ async function example2_temporalPatterns() {
       }
     }
   });
-  
+  */
+
   // Process a sequence of related queries
   const queries = [
     "What causes market volatility?",
