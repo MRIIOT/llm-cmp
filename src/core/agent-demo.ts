@@ -557,9 +557,15 @@ async function example2_temporalPatterns() {
   messages.forEach((msg, idx) => {
     const stability = msg.content.temporalContext.stability;
     const anomaly = msg.metadata.htmState.anomalyScore;
+    const htmState = msg.metadata.htmState;
     const bar = '[' + '█'.repeat(Math.round(stability * 10)) + '░'.repeat(10 - Math.round(stability * 10)) + ']';
     const questionText = queries[idx] || 'Unknown query';
-    console.log(`     Query ${idx + 1}: Stability ${bar} ${(stability * 100).toFixed(0)}% | Anomaly: ${(anomaly * 100).toFixed(0)}% | ${questionText}`);
+    
+    // Check if prediction cells are all false (system initiating/learning)
+    const hasPredictions = htmState.predictedColumns && htmState.predictedColumns.length > 0;
+    const anomalyDisplay = hasPredictions ? `${(anomaly * 100).toFixed(0)}%` : 'N/A';
+    
+    console.log(`     Query ${idx + 1}: Stability ${bar} ${(stability * 100).toFixed(0)}% | Anomaly: ${anomalyDisplay} | ${questionText}`);
   });
   
   // Show hierarchical encoding benefits
