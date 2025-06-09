@@ -509,6 +509,7 @@ export interface Config {
   consensus: ConsensusConfig;
   performance: PerformanceConfig;
   semantic?: SemanticConfig;
+  anomaly?: AnomalyConfig;
 }
 
 export interface AgentConfig {
@@ -530,7 +531,7 @@ export interface HTMConfig {
 export interface BayesianConfig {
   priorStrength: number;
   updatePolicy: 'conservative' | 'aggressive' | 'adaptive';
-  conflictResolution: 'voting' | 'argumentation' | 'hierarchical';
+  conflictResolution: 'voting' | 'argumentation' | 'hierarchical' | 'weighted_consensus';
   uncertaintyThreshold: number;
 }
 
@@ -558,6 +559,34 @@ export interface SemanticConfig {
   sparsity?: number;
   columnsPerConcept?: number;
   columnOverlapRatio?: number;
+  // Domain coherence parameters
+  domainCoherenceMode?: boolean;
+  conceptOverlapThreshold?: number;
+  domainStickiness?: number;
+  semanticGeneralization?: number;
+  crossDomainPenalty?: number;
+  activationThreshold?: number;
+  semanticDecayRate?: number;
+  domainSpecificFeatures?: boolean;
+  featureReuse?: number;
+  conceptSimilarityBoost?: number;
+}
+
+export interface AnomalyConfig {
+  domainAwareScoring?: boolean;
+  inDomainThreshold?: number;
+  crossDomainThreshold?: number;
+  smoothingFactor?: number;
+  domainTransitionPenalty?: number;
+  // Pattern similarity
+  minPatternOverlap?: number;
+  patternSimilarityBoost?: number;
+  // Temporal coherence
+  temporalWindow?: number;
+  temporalWeight?: number;
+  // Domain memory
+  domainMemorySize?: number;
+  domainDecayRate?: number;
 }
 
 // ===============================================

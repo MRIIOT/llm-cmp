@@ -42,6 +42,7 @@ import { InferenceEngine } from '../evidence/bayesian/inference-engine.js';
 import { UncertaintyMetrics } from '../evidence/uncertainty/uncertainty-metrics.js';
 import { AdaptiveAgent } from '../agents/dynamic/adaptive-agent.js';
 import { SemanticEncoder } from './semantic/index.js';
+import { DomainAwareAnomalyCalculator } from './htm/domain-aware-anomaly.js';
 
 export interface AgentConfig {
   id: string;
@@ -74,6 +75,9 @@ export class Agent {
   
   // Semantic encoding
   private semanticEncoder!: SemanticEncoder;
+  
+  // Domain-aware anomaly detection
+  private domainAnomalyCalculator?: DomainAwareAnomalyCalculator;
   
   // State tracking
   private messageHistory: Message[];
@@ -273,6 +277,41 @@ export class Agent {
     } else {
       // Normal case: we have predictions to compare against
       anomalyScore = 1 - output.predictionAccuracy; // Invert: high accuracy = low anomaly
+    }
+    
+    // Use domain-aware anomaly calculation if available
+    if (this.domainAnomalyCalculator && anomalyScore >= 0) {
+      // Calculate semantic similarity if we have previous messages
+      let semanticSimilarity: number | undefined;
+      if (this.messageHistory.length > 0) {
+        const lastMessage = this.messageHistory[this.messageHistory.length - 1];
+        const lastEncoding = lastMessage.metadata.htmState.activeColumns.map(idx => {
+          const arr = new Array(this.config.htm.columnCount).fill(false);
+          arr[idx] = true;
+          return arr;
+        }).reduce((acc, arr) => {
+          arr.forEach((val, idx) => acc[idx] = acc[idx] || val);
+          return acc;
+        }, new Array(this.config.htm.columnCount).fill(false));
+        
+        // Calculate overlap between current and previous encoding
+        let overlap = 0;
+        let active1 = 0;
+        let active2 = 0;
+        for (let i = 0; i < encoding.length; i++) {
+          if (encoding[i]) active1++;
+          if (lastEncoding[i]) active2++;
+          if (encoding[i] && lastEncoding[i]) overlap++;
+        }
+        semanticSimilarity = (active1 > 0 && active2 > 0) ? overlap / Math.min(active1, active2) : 0;
+      }
+      
+      // Use domain-aware calculation
+      anomalyScore = this.domainAnomalyCalculator.calculateAnomaly(
+        output,
+        encoding,
+        semanticSimilarity
+      );
     }
     
     this.currentHTMState = {
@@ -684,7 +723,8 @@ export class Agent {
         adaptiveOptimization: true,
         ...config.performance
       },
-      semantic: config.semantic ? { ...config.semantic } : undefined
+      semantic: config.semantic ? { ...config.semantic } : undefined,
+      anomaly: config.anomaly ? { ...config.anomaly } : undefined
     };
   }
 
@@ -712,7 +752,7 @@ export class Agent {
       name: `htm_${this.id}`,
       numColumns: this.config.htm.columnCount,
       cellsPerColumn: this.config.htm.cellsPerColumn,
-      inputSize: 2048,
+      inputSize: this.config.htm.columnCount,  // Use configured column count instead of hardcoded 2048
       enableSpatialLearning: true,
       enableTemporalLearning: true,
       learningMode: 'online',
@@ -736,6 +776,11 @@ export class Agent {
       contextDimensions: 50,
       adaptationRate: this.config.agents.adaptationRate
     });
+    
+    // Initialize domain-aware anomaly calculator if configured
+    if (this.config.anomaly?.domainAwareScoring) {
+      this.domainAnomalyCalculator = new DomainAwareAnomalyCalculator(this.config.anomaly);
+    }
   }
 
   private initializeBayesian(): void {

@@ -39,7 +39,45 @@ Implement two complementary improvements:
 - [✅] Verify "volatility" and "volatile" share bigram columns
 - [✅] Verify "market" and "marketplace" share columns
 - [✅] Measure overlap percentages
-- [ ] **Human Test**: Run `npm test hierarchical-encoding` and verify overlap metrics
+- [✅] **Human Test**: Run `npm test hierarchical-encoding` and verify overlap metrics
+
+### Phase 1.5: Domain-Aware Anomaly Detection (NEW)
+
+#### 4a. Create Domain-Aware Anomaly Calculator
+- [✅] Create new file: `src/core/htm/domain-aware-anomaly.ts`
+- [✅] Implement DomainAwareAnomalyCalculator class with:
+  - [✅] Pattern similarity calculation (Jaccard similarity)
+  - [✅] Temporal coherence tracking
+  - [✅] Domain memory and pattern matching
+  - [✅] Smoothed anomaly scores
+  - [✅] Domain transition penalty
+
+#### 4b. Integrate with Agent
+- [✅] Add domain anomaly calculator to Agent class
+- [✅] Update updateTemporalContext to use domain-aware anomaly
+- [✅] Add AnomalyConfig to Config interface
+- [✅] Update mergeWithDefaults to include anomaly config
+
+#### 4c. Update Demo Configuration
+- [✅] Create optimized configuration in agent-demo.ts
+- [✅] Increase HTM columnCount to 4096 for better discrimination
+- [✅] Add semantic domain coherence parameters
+- [✅] Add anomaly configuration with domain-aware settings
+- [✅] Create aggressive domain configuration with extreme parameters
+- [✅] **ISSUE**: Out of memory with aggressive config (8192 columns × 48 cells)
+- [✅] Create memory-efficient configurations:
+  - `memoryEfficientDomainConfig`: 2048 columns, 16 cells, 100 pattern memory
+  - `balancedDomainConfig`: 3072 columns, 20 cells, 150 pattern memory
+  - `minimalMemoryConfig`: 1024 columns, 12 cells, 50 pattern memory
+- [✅] Update demo to use memory-efficient config
+- [✅] Add memory-limited npm scripts
+- [ ] **Human Test**: Run `npm run demo:agent` and verify reduced in-domain anomaly
+
+### Memory-Efficient Configuration Features:
+- **HTM**: 2048 columns × 16 cells = 32,768 cells (vs 393,216 before)
+- **Semantic**: 5% sparsity, 20 columns/concept, 40% overlap
+- **Anomaly**: 90% smoothing, 80% similarity boost, 100 pattern memory
+- **Expected results**: 10-20% in-domain anomaly (better than 20-26% baseline)
 
 ### Phase 2: Sparse Distributed Thesaurus Implementation
 

@@ -8,6 +8,8 @@
     "dev": "tsc && node dist/index.js",
     "start": "node dist/index.js",
     "demo": "npm run build && node dist/core/run-agent-demo.js",
+    "demo:agent": "npm run build && node --max-old-space-size=2048 dist/core/run-agent-demo.js",
+    "demo:agent:lowmem": "npm run build && node --max-old-space-size=1024 dist/core/run-agent-demo.js",
     "demo:debug": "npm run build && node --inspect-brk dist/core/run-agent-demo.js"
   },
   "dependencies": {
