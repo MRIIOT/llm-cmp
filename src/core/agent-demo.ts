@@ -406,19 +406,33 @@ async function example2_temporalPatterns() {
     "What causes market volatility?",
     "How do interest rates affect market volatility?",
     "Can we predict market volatility patterns?",
-    "How to bake a chocolate cake?",
     "What does local currency suggest?",
     "What indicators suggest increasing volatility?",
     "How do currency fluctuations impact global trade?",
     "What are the best hiking trails in Colorado?",
     "How does inflation affect currency strength?",
-    "What ingredients make cake moist and fluffy?",
-    "Can machine learning predict market crashes?",
-    "How do I care for houseplants in winter?",
     "What role do central banks play in currency stability?",
-    "How does quantum computing work?",
     "What are leading economic indicators to watch?",
-    "How to train a neural network for time series forecasting?"
+    "How to train a neural network for time series forecasting?",
+    "What drives foreign exchange rate movements?",
+    "How do monetary policy changes affect bond markets?",
+    "What is the relationship between unemployment and inflation?",
+    "How do commodity prices influence currency values?",
+    "What factors determine stock market liquidity?",
+    "How does geopolitical risk impact financial markets?",
+    "What are the mechanics of currency carry trades?",
+    "How do sovereign credit ratings affect bond yields?",
+    "What role does market sentiment play in price discovery?",
+    "How do derivatives markets influence underlying asset prices?",
+    "What causes currency crisis contagion effects?",
+    "How do fiscal deficits impact exchange rates?",
+    "What are the drivers of emerging market capital flows?",
+    "How does monetary tightening affect credit markets?",
+    "What triggers sudden stops in capital flows?",
+    "How do trade balances influence currency strength?",
+    "What role do currency interventions play in exchange rate stability?",
+    "How does quantitative easing affect asset prices?",
+    "What are the dynamics of cross-border capital movements?"
   ];
   
   console.log('Processing query sequence to learn temporal patterns...\n');
@@ -558,14 +572,33 @@ async function example2_temporalPatterns() {
     const stability = msg.content.temporalContext.stability;
     const anomaly = msg.metadata.htmState.anomalyScore;
     const htmState = msg.metadata.htmState;
-    const bar = '[' + '█'.repeat(Math.round(stability * 10)) + '░'.repeat(10 - Math.round(stability * 10)) + ']';
+    const stabilityBar = '[' + '█'.repeat(Math.round(stability * 10)) + '░'.repeat(10 - Math.round(stability * 10)) + ']';
     const questionText = queries[idx] || 'Unknown query';
     
     // Check if prediction cells are all false (system initiating/learning)
     const hasPredictions = htmState.predictedColumns && htmState.predictedColumns.length > 0;
-    const anomalyDisplay = hasPredictions ? `${(anomaly * 100).toFixed(0)}%` : 'N/A';
+    const anomalyDisplay = (anomaly >= 0 && hasPredictions) ? `${(anomaly * 100).toFixed(0)}%` : 'N/A';
     
-    console.log(`     Query ${idx + 1}: Stability ${bar} ${(stability * 100).toFixed(0)}% | Anomaly: ${anomalyDisplay} | ${questionText}`);
+    // Create anomaly bar with different styling based on severity
+    let anomalyBar: string;
+    if (anomaly < 0) {
+      // N/A case
+      anomalyBar = '[' + '-'.repeat(10) + ']';
+    } else {
+      const anomalyLevel = Math.round(anomaly * 10);
+      if (anomaly > 0.7) {
+        // High anomaly (70%+) - use warning symbols
+        anomalyBar = '[' + '▓'.repeat(anomalyLevel) + '░'.repeat(10 - anomalyLevel) + ']';
+      } else if (anomaly > 0.3) {
+        // Medium anomaly (30-70%) - use medium symbols
+        anomalyBar = '[' + '▒'.repeat(anomalyLevel) + '░'.repeat(10 - anomalyLevel) + ']';
+      } else {
+        // Low anomaly (0-30%) - use light symbols
+        anomalyBar = '[' + '░'.repeat(anomalyLevel) + '·'.repeat(10 - anomalyLevel) + ']';
+      }
+    }
+    
+    console.log(`     Query ${idx + 1}: Stability ${stabilityBar} ${(stability * 100).toFixed(0)}% | Anomaly: ${anomalyBar} ${anomalyDisplay} | ${questionText}`);
   });
   
   // Show hierarchical encoding benefits

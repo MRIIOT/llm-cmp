@@ -147,9 +147,10 @@ export function visualizeHTMState(htmState: HTMState): void {
   
   // Display metrics
   const anomalyBar = createAnomalyBar(htmState.anomalyScore);
+  const anomalyDisplay = htmState.anomalyScore >= 0 ? `${(htmState.anomalyScore * 100).toFixed(1)}%` : 'N/A';
   console.log(`\n   Active Columns: ${htmState.activeColumns.length} / 2048`);
   console.log(`   Predicted Columns: ${htmState.predictedColumns.length}`);
-  console.log(`   Anomaly Score: ${anomalyBar} ${(htmState.anomalyScore * 100).toFixed(1)}%`);
+  console.log(`   Anomaly Score: ${anomalyBar} ${anomalyDisplay}`);
   console.log(`   Sequence ID: ${htmState.sequenceId}`);
   console.log(`   Learning: ${htmState.learningEnabled ? '✓ Enabled' : '✗ Disabled'}`);
 }
@@ -342,6 +343,12 @@ function createUncertaintyBar(uncertainty: number): string {
 
 function createAnomalyBar(anomaly: number): string {
   const width = 20;
+  
+  // Handle special case where anomaly is -1 (N/A)
+  if (anomaly < 0) {
+    return '[' + '-'.repeat(width) + ']'; // Show as dashes for N/A
+  }
+  
   const filled = Math.round(anomaly * width);
   const empty = width - filled;
   

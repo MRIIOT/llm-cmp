@@ -80,6 +80,8 @@ export class Agent {
   private performanceHistory: PerformanceMetric[];
   private currentHTMState: HTMState;
   private currentBelief: BayesianBelief;
+  private previousHTMPredictions: number[] = [];
+  private iteration: number = 0;
   
   // Configuration
   private config: Config;
@@ -201,6 +203,9 @@ export class Agent {
       // 10. Adapt if necessary
       await this.adaptIfNecessary(message);
       
+      // 11. Increment iteration counter
+      this.iteration++;
+      
       return message;
       
     } catch (error) {
@@ -252,13 +257,34 @@ export class Agent {
       }
     }
     
+    // Check if we had predictions to compare against
+    // If this is the first query or there were no previous predictions, set anomaly to -1 (N/A)
+    let anomalyScore: number;
+    if (this.iteration === 0 || output.predictionAccuracy === 0) {
+      // No previous predictions to compare against or no predictions made
+      // Check if we actually had predictions from previous step
+      const hadPreviousPredictions = this.previousHTMPredictions && this.previousHTMPredictions.length > 0;
+      if (!hadPreviousPredictions) {
+        anomalyScore = -1; // Sentinel value meaning "N/A"
+      } else {
+        // We had predictions but accuracy is 0 - this is a real 100% anomaly
+        anomalyScore = 1.0;
+      }
+    } else {
+      // Normal case: we have predictions to compare against
+      anomalyScore = 1 - output.predictionAccuracy; // Invert: high accuracy = low anomaly
+    }
+    
     this.currentHTMState = {
       activeColumns: activeColumnIndices,
       predictedColumns: predictedColumnIndices,
-      anomalyScore: 1 - output.predictionAccuracy, // Invert: high accuracy = low anomaly
+      anomalyScore: anomalyScore,
       sequenceId: this.generateSequenceId(),
       learningEnabled: true
     };
+    
+    // Store current predictions for next iteration
+    this.previousHTMPredictions = predictedColumnIndices;
     
     // Build temporal context
     return {
@@ -1673,5 +1699,7 @@ You excel at structured, logical thinking and always follow the specified format
     this.inferenceEngine = new InferenceEngine(this.bayesianNetwork);
     this.currentHTMState = this.getInitialHTMState();
     this.currentBelief = this.getInitialBelief();
+    this.previousHTMPredictions = [];
+    this.iteration = 0;
   }
 }
