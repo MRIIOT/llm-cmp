@@ -405,22 +405,22 @@ async function example2_temporalPatterns() {
         enablePhase2Enhancements: true,
         enableConceptNormalization: true,
         enableRelationshipTracking: true,
-        semanticOverlapThreshold: 0.15,  // Added
-        conceptDistanceMetric: 'weighted_jaccard',  // Added
-        maxConceptDepth: 3  // Added
+        //semanticOverlapThreshold: 0.15,  // Added
+        //conceptDistanceMetric: 'weighted_jaccard',  // Added
+        //maxConceptDepth: 3  // Added
       },
-      domainCoherence: {  // Added section
-        enabled: true,
-        smoothing: 0.75,
-        similarityBoost: 0.65,
-        sparsity: 0.07
-      },
-      patternMemory: {  // Added section
-        enabled: true,
-        maxPatterns: 80,
-        decayRate: 0.94,
-        minPatternSupport: 2
-      }
+      //domainCoherence: {  // Added section
+      //  enabled: true,
+      //  smoothing: 0.75,
+      //  similarityBoost: 0.65,
+      //  sparsity: 0.07
+      //},
+      //patternMemory: {  // Added section
+      //  enabled: true,
+      //  maxPatterns: 80,
+      //  decayRate: 0.94,
+      //  minPatternSupport: 2
+      //}
     }
   }
 
