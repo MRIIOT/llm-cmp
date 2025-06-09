@@ -112,6 +112,9 @@ export interface SemanticEncodingConfig {
   
   /** Enable relationship tracking */
   enableRelationshipTracking: boolean;
+  
+  /** Enable hierarchical hash encoding for natural concept overlap */
+  enableHierarchicalEncoding: boolean;
 }
 
 /**
@@ -130,7 +133,8 @@ export const DEFAULT_SEMANTIC_CONFIG: SemanticEncodingConfig = {
   relationshipDecayFactor: 0.95,
   minRelationshipWeight: 0.1,
   enableConceptNormalization: true,
-  enableRelationshipTracking: true
+  enableRelationshipTracking: true,
+  enableHierarchicalEncoding: true // Enable hierarchical encoding by default
 };
 
 /**

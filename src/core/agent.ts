@@ -152,7 +152,9 @@ export class Agent {
     if (!this.semanticEncoder) {
       this.semanticEncoder = new SemanticEncoder(llmInterface, {
         numColumns: this.config.htm.columnCount,
-        sparsity: 0.02
+        sparsity: 0.02,
+        // Pass through semantic configuration if provided
+        ...(this.config.semantic || {})
       });
     }
     
@@ -253,7 +255,7 @@ export class Agent {
     this.currentHTMState = {
       activeColumns: activeColumnIndices,
       predictedColumns: predictedColumnIndices,
-      anomalyScore: output.predictionAccuracy,
+      anomalyScore: 1 - output.predictionAccuracy, // Invert: high accuracy = low anomaly
       sequenceId: this.generateSequenceId(),
       learningEnabled: true
     };
@@ -655,7 +657,8 @@ export class Agent {
         memoryLimit: 1024 * 1024 * 1024, // 1GB
         adaptiveOptimization: true,
         ...config.performance
-      }
+      },
+      semantic: config.semantic ? { ...config.semantic } : undefined
     };
   }
 

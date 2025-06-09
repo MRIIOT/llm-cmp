@@ -508,6 +508,7 @@ export interface Config {
   bayesian: BayesianConfig;
   consensus: ConsensusConfig;
   performance: PerformanceConfig;
+  semantic?: SemanticConfig;
 }
 
 export interface AgentConfig {
@@ -546,6 +547,17 @@ export interface PerformanceConfig {
   gpuAcceleration: boolean;
   memoryLimit: number;
   adaptiveOptimization: boolean;
+}
+
+export interface SemanticConfig {
+  enableHierarchicalEncoding?: boolean;
+  enablePhase2Enhancements?: boolean;
+  enableConceptNormalization?: boolean;
+  enableRelationshipTracking?: boolean;
+  numColumns?: number;
+  sparsity?: number;
+  columnsPerConcept?: number;
+  columnOverlapRatio?: number;
 }
 
 // ===============================================

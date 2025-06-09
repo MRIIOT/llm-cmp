@@ -19,6 +19,7 @@ import { SemanticFeatureCache } from './semantic-feature-cache.js';
 import { ConceptNormalizer } from './concept-normalizer.js';
 import { SemanticRelationshipManager } from './semantic-relationship-manager.js';
 import { AdaptiveColumnAssigner } from './adaptive-column-assigner.js';
+import { HierarchicalHashEncoder } from './hierarchical-hash-encoder.js';
 
 export class SemanticEncoder {
   private readonly config: SemanticEncodingConfig;
@@ -30,6 +31,9 @@ export class SemanticEncoder {
   private readonly conceptNormalizer?: ConceptNormalizer;
   private readonly relationshipManager?: SemanticRelationshipManager;
   private readonly columnAssigner?: AdaptiveColumnAssigner;
+  
+  // Hierarchical encoder
+  private readonly hierarchicalEncoder?: HierarchicalHashEncoder;
 
   constructor(
     llmInterface: (request: LLMRequest) => Promise<LLMResponse>,
@@ -43,6 +47,13 @@ export class SemanticEncoder {
       this.config.llmMaxTokens
     );
     this.featureCache = new SemanticFeatureCache(this.config);
+    
+    // Initialize Hierarchical Encoder if enabled
+    if (this.config.enableHierarchicalEncoding) {
+      this.hierarchicalEncoder = new HierarchicalHashEncoder({
+        // Use default config for now, can be customized later
+      });
+    }
     
     // Initialize Phase 2 components if enabled
     if (this.config.enablePhase2Enhancements) {
@@ -185,36 +196,87 @@ export class SemanticEncoder {
     const normalizedMap = await this.conceptNormalizer.normalizeMany(concepts);
     const normalizedConcepts = concepts.map(c => normalizedMap.get(c) || c);
     
-    // Process each concept with relationship-aware column assignment
-    for (let i = 0; i < normalizedConcepts.length && activated < maxColumns; i++) {
-      const concept = normalizedConcepts[i];
-      const weight = 1.0 - (i * 0.07); // Position-based importance
+    // Use hierarchical encoding if available
+    if (this.hierarchicalEncoder) {
+      const hierarchicalEncoder = this.hierarchicalEncoder; // Capture for TypeScript
       
-      // Get related concepts from relationship manager
-      let relatedConcepts: Array<{ concept: string; weight: number }> = [];
-      if (this.relationshipManager) {
-        const importance = this.relationshipManager.getConceptImportance(concept);
-        const finalWeight = weight * (0.7 + importance * 0.3);
-        relatedConcepts = this.relationshipManager.getRelatedConcepts(concept, 0.3);
+      // Process each concept with hierarchical encoding
+      for (let i = 0; i < normalizedConcepts.length && activated < maxColumns; i++) {
+        const concept = normalizedConcepts[i];
+        const weight = 1.0 - (i * 0.07); // Position-based importance
+        
+        // Get hierarchical encoding for the concept
+        const hierarchicalColumns: number[] = hierarchicalEncoder.encodeHierarchical(concept);
+        
+        // Get related concepts from relationship manager
+        let relatedConcepts: Array<{ concept: string; weight: number }> = [];
+        if (this.relationshipManager) {
+          const importance = this.relationshipManager.getConceptImportance(concept);
+          const finalWeight = weight * (0.7 + importance * 0.3);
+          relatedConcepts = this.relationshipManager.getRelatedConcepts(concept, 0.3);
+        }
+        
+        // Determine columns to activate based on weight and relationships
+        const columnsToActivate = Math.max(
+          Math.floor(hierarchicalColumns.length * weight * 0.7),
+          Math.min(5, hierarchicalColumns.length)
+        );
+        
+        // Activate hierarchical columns
+        for (let j = 0; j < columnsToActivate && activated < maxColumns; j++) {
+          const col = hierarchicalColumns[j];
+          if (col < encoding.length && !encoding[col]) {
+            encoding[col] = true;
+            activated++;
+          }
+        }
+        
+        // Also activate some columns from related concepts if they exist
+        for (const related of relatedConcepts.slice(0, 2)) { // Top 2 related
+          const relatedColumns: number[] = hierarchicalEncoder.encodeHierarchical(related.concept);
+          const relatedToActivate = Math.floor(related.weight * 5); // 0-5 columns based on weight
+          
+          for (let k = 0; k < relatedToActivate && activated < maxColumns; k++) {
+            const col = relatedColumns[k];
+            if (col < encoding.length && !encoding[col]) {
+              encoding[col] = true;
+              activated++;
+            }
+          }
+        }
       }
-      
-      // Assign columns with semantic overlap
-      const columnsPerConcept = Math.max(
-        Math.floor(this.config.columnsPerConcept * weight),
-        5 // Minimum 5 columns per concept
-      );
-      
-      const assignedColumns = await this.columnAssigner.assignColumns(
-        concept,
-        relatedConcepts,
-        columnsPerConcept
-      );
-      
-      // Activate assigned columns
-      for (const col of assignedColumns) {
-        if (!encoding[col] && activated < maxColumns) {
-          encoding[col] = true;
-          activated++;
+    } else {
+      // Original adaptive column assignment
+      for (let i = 0; i < normalizedConcepts.length && activated < maxColumns; i++) {
+        const concept = normalizedConcepts[i];
+        const weight = 1.0 - (i * 0.07); // Position-based importance
+        
+        // Get related concepts from relationship manager
+        let relatedConcepts: Array<{ concept: string; weight: number }> = [];
+        if (this.relationshipManager) {
+          const importance = this.relationshipManager.getConceptImportance(concept);
+          const finalWeight = weight * (0.7 + importance * 0.3);
+          relatedConcepts = this.relationshipManager.getRelatedConcepts(concept, 0.3);
+        }
+        
+        // Assign columns with semantic overlap
+        const columnsPerConcept = Math.max(
+          Math.floor(this.config.columnsPerConcept * weight),
+          5 // Minimum 5 columns per concept
+        );
+        
+        const assignedColumns = await this.columnAssigner.assignColumns(
+          concept,
+          relatedConcepts,
+          columnsPerConcept
+        );
+        
+        // Activate assigned columns
+        for (const col of assignedColumns) {
+          if (!encoding[col] && activated < maxColumns) {
+            encoding[col] = true;
+            activated++;
+          }
         }
       }
     }
@@ -341,27 +403,56 @@ export class SemanticEncoder {
   ): number {
     let activated = 0;
 
-    concepts.forEach((concept, index) => {
-      // Weight by importance (first concepts are more important)
-      // Adjusted weighting to maintain more columns for important concepts
-      const weight = 1.0 - (index * 0.07); // Reduced decay from 0.1 to 0.07
-      const conceptColumns = this.featureCache.getConceptColumns(
-        concept,
-        this.config.numColumns
-      );
+    // Use hierarchical encoding if enabled
+    if (this.hierarchicalEncoder) {
+      const hierarchicalEncoder = this.hierarchicalEncoder; // Capture for TypeScript
       
-      const columnsToActivate = Math.max(
-        Math.floor(conceptColumns.length * weight),
-        Math.min(5, conceptColumns.length) // Ensure at least 5 columns for each concept
-      );
-      
-      for (let i = 0; i < columnsToActivate && activated < maxColumns; i++) {
-        if (!encoding[conceptColumns[i]]) {
-          encoding[conceptColumns[i]] = true;
-          activated++;
+      concepts.forEach((concept, index) => {
+        // Weight by importance (first concepts are more important)
+        const weight = 1.0 - (index * 0.07);
+        
+        // Get hierarchical encoding for the concept
+        const hierarchicalColumns: number[] = hierarchicalEncoder.encodeHierarchical(concept);
+        
+        // Determine how many columns to activate based on weight
+        const columnsToActivate = Math.max(
+          Math.floor(hierarchicalColumns.length * weight * 0.7), // Use 70% of available columns
+          Math.min(5, hierarchicalColumns.length) // Ensure at least 5 columns
+        );
+        
+        // Activate columns
+        for (let i = 0; i < columnsToActivate && activated < maxColumns; i++) {
+          const col = hierarchicalColumns[i];
+          if (col < encoding.length && !encoding[col]) {
+            encoding[col] = true;
+            activated++;
+          }
         }
-      }
-    });
+      });
+    } else {
+      // Original hash-based encoding
+      concepts.forEach((concept, index) => {
+        // Weight by importance (first concepts are more important)
+        // Adjusted weighting to maintain more columns for important concepts
+        const weight = 1.0 - (index * 0.07); // Reduced decay from 0.1 to 0.07
+        const conceptColumns = this.featureCache.getConceptColumns(
+          concept,
+          this.config.numColumns
+        );
+        
+        const columnsToActivate = Math.max(
+          Math.floor(conceptColumns.length * weight),
+          Math.min(5, conceptColumns.length) // Ensure at least 5 columns for each concept
+        );
+        
+        for (let i = 0; i < columnsToActivate && activated < maxColumns; i++) {
+          if (!encoding[conceptColumns[i]]) {
+            encoding[conceptColumns[i]] = true;
+            activated++;
+          }
+        }
+      });
+    }
 
     return activated;
   }
