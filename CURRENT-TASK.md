@@ -31,13 +31,13 @@ Result: "risk" ghost path no longer contributes to column overlap
 ### Edge Toggling Impact on Encoding
 ```typescript
 // Before toggling (all edges active)
-encode("currency") → columns: [100, 200, 300, 400, 500]  
+encode("currency") → columns: [100, 200, 300, 400, 500]
 encode("volatility") → columns: [150, 250, 350, 450, 550]
 // Overlap: [none from direct, but ghost tokens add shared columns]
 
 // After toggling risk edge OFF
 encode("currency") → columns: [100, 200, 300, 400, 500]
-encode("volatility") → columns: [150, 250, 350, 480, 580]  
+encode("volatility") → columns: [150, 250, 350, 480, 580]
 // Reduced overlap: risk-mediated columns no longer shared
 ```
 
@@ -338,7 +338,7 @@ This phase has **URGENT PRIORITY** as the current validation system is actively 
 
 #### 10. Test Checkpoint 2 - Ghost Token Relationships and Edge Toggling
 - [ ] Create test sequence demonstrating ghost token mechanism:
-  - [ ] Query: "What affects currency volatility?" 
+  - [ ] Query: "What affects currency volatility?"
     - Concepts: ["currency", "volatility"]
     - Expected ghost tokens: ["risk":0.8, "exchange":0.7, "market":0.6]
   - [ ] Verify ghost tokens create weighted relationships
@@ -405,9 +405,9 @@ This phase has **URGENT PRIORITY** as the current validation system is actively 
 1. Human to run `npm run build && node dist/tests/hierarchical-encoding.test.js` to verify Phase 1 implementation
 2. Human to run `npm run build && node dist/tests/logical-proof-validator-enhanced.test.js` to verify Phase 1.1 implementation
 3. Human to run `npm run demo:agent` and verify:
-   - Enhanced validator message appears
-   - Climate science causal chains are not flagged as contradictory
-   - Logical proof shows 0 contradictions for valid reasoning
+  - Enhanced validator message appears
+  - Climate science causal chains are not flagged as contradictory
+  - Logical proof shows 0 contradictions for valid reasoning
 4. Once verified, proceed to Phase 2: Sparse Distributed Thesaurus Implementation
 
 ### Notes
@@ -430,7 +430,7 @@ This phase has **URGENT PRIORITY** as the current validation system is actively 
   - Build completes successfully with no errors
 - **Phase 2 Enhancement**: Ghost token mechanism will enable richer relationship building:
   - LLM extracts implicit conceptual bridges (ghost tokens) with probabilities
-  - Example: "currency" ←→ [risk:0.8] ←→ "volatility" 
+  - Example: "currency" ←→ [risk:0.8] ←→ "volatility"
   - Faster learning: relationships form from single query instead of requiring multiple co-occurrences
   - Probability-weighted overlap: stronger ghost tokens create more column sharing
   - **Edge toggling**: Each relationship can be activated/deactivated for fine-tuned control

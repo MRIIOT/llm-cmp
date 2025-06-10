@@ -194,29 +194,11 @@ Return ONLY the JSON object, no explanation or additional text.`;
   }
 
   if (request.metadata?.purpose === 'generate-reasoning') {
-
-    // For regular queries, create a system prompt that enforces structured reasoning
-    const structuredReasoningPrompt = `You are a scientific reasoning system. For any question, provide a step-by-step analysis using this EXACT format:
-  
-  [TYPE:concept|logical_notation] explanation
-  
-  Types: OBSERVATION, INFERENCE, ANALYSIS, DEDUCTION, SYNTHESIS, PREDICTION
-  
-  Example question: "What causes ocean tides?"
-  Example answer:
-  [OBSERVATION:moon_gravity|Gravity(moon, earth)] The moon exerts gravitational force on Earth
-  [OBSERVATION:water_mobility|Water(liquid, mobile)] Ocean water can move freely unlike solid land
-  [INFERENCE:differential_pull|Distance(near) > Distance(far) → Force(near) > Force(far)] Closer water experiences stronger pull
-  [DEDUCTION:bulge_formation|Differential_force → Water_bulge] This creates water bulges on near and far sides
-  [SYNTHESIS:tidal_cycle|Earth_rotation + Bulges → Tides(12.5hr_cycle)] Earth's rotation through bulges creates tidal cycles
-  
-  Your answer MUST use this format. Answer the actual scientific question, not analyze the words.`;
-
+    // The agent.ts already handles prompt formatting for reasoning generation
+    // Just pass through with appropriate temperature and token settings
     const enhancedRequest: LLMRequest = {
       ...request,
-      prompt: `Question: ${request.prompt}`, // Make it clear this is the question to answer
-      systemPrompt: structuredReasoningPrompt,
-      temperature: request.temperature ?? 0.3, // Even lower temperature for better consistency
+      temperature: request.temperature ?? 0.3, // Lower temperature for consistency
       maxTokens: request.maxTokens ?? 1500
     };
 

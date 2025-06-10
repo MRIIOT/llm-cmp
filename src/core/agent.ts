@@ -952,68 +952,70 @@ export class Agent {
         ).join('\n')}`
       : '';
     
+    const focusAreas = capability.specializations.join(', ');
+    
     return `You are a specialized reasoning agent with ${capability.name} capability.
 
 QUERY: ${query}
-
-CONTEXT: ${JSON.stringify(context, null, 2)}
-${previousContext}
+CONTEXT: ${JSON.stringify(context, null, 2)}${previousContext}
 
 INSTRUCTIONS:
 Generate reasoning steps in this EXACT format. Each line must follow this pattern:
-
 [TYPE:CONCEPT|LOGICAL_FORM] reasoning content here
 
 Where:
-- TYPE is one of: OBSERVATION, INFERENCE, DEDUCTION, ANALYSIS, PREDICTION, HYPOTHESIS, SYNTHESIS
+- TYPE is one of: OBSERVATION, INFERENCE, ANALYSIS, DEDUCTION, HYPOTHESIS, PREDICTION, SYNTHESIS, ANALOGY, INDUCTION
 - CONCEPT is a short descriptor (1-3 words, use underscores for spaces)
 - LOGICAL_FORM is optional formal notation using predicate logic
 
-LOGICAL NOTATION GUIDE:
+LOGICAL NOTATION GUIDE (when applicable):
 - Predicates: Temperature(x), Causes(x,y), Increases(x)
 - Quantifiers: ∀x (for all), ∃x (exists)
 - Connectives: ∧ (and), ∨ (or), → (implies), ¬ (not), ↔ (iff)
 - Examples: ∀x(P(x) → Q(x)), Causes(warming, storms) ∧ Increases(frequency)
 
 EXAMPLES:
-[OBSERVATION:temperature_data|Temperature(current, 1.1°C_above_baseline)] Current global temperature shows 1.1°C increase
-[INFERENCE:causal_link|Temperature(↑) → ExtremeWeather(↑)] Rising temperatures lead to more extreme weather
-[DEDUCTION:future_impact|NoAction → Temperature(+2-4°C)] Without intervention, temperatures will rise 2-4°C
-[SYNTHESIS:action_required|Limit(1.5°C) → RequiresAction(immediate)] Immediate action needed to limit warming
+Question: "What causes ocean tides?"
+[OBSERVATION:moon_gravity|Gravity(moon, earth)] The moon exerts gravitational force on Earth
+[OBSERVATION:water_mobility|Water(liquid, mobile)] Ocean water can move freely unlike solid land
+[INFERENCE:differential_pull|Distance(near) > Distance(far) → Force(near) > Force(far)] Closer water experiences stronger pull
+[ANALYSIS:force_distribution|Force_varies(location)] Analyzing the force distribution shows variation across Earth's surface
+[DEDUCTION:bulge_formation|Differential_force → Water_bulge] This creates water bulges on near and far sides
+[HYPOTHESIS:sun_influence|∃x(Sun(x) ∧ Affects(x, tides))] The sun might also contribute to tidal forces
+[PREDICTION:spring_tides|Alignment(sun, moon, earth) → Tides(extreme)] When sun and moon align, we'll see more extreme tides
+[SYNTHESIS:tidal_cycle|Earth_rotation + Bulges → Tides(12.5hr_cycle)] Earth's rotation through bulges creates tidal cycles
+[ANALOGY:atmosphere_tides|Similar(ocean_tides, atmospheric_tides)] Like ocean tides, the atmosphere experiences similar tidal effects
+[INDUCTION:pattern_recognition|∀x(Celestial_body(x) → Causes_tides(x))] From moon and sun examples, all massive celestial bodies cause tidal effects
 
 IMPORTANT:
-- Each reasoning step MUST start with [TYPE:CONCEPT] (logical form optional)
+- Each reasoning step MUST start with [TYPE:CONCEPT]
 - Use formal notation when relationships/logic are clear
 - Build logical chains that support your conclusions
-- Focus your analysis on: ${capability.specializations.join(', ')}
+- Answer the actual question, not analyze the words
+- Focus your analysis on: ${focusAreas}
 
 Begin your reasoning:`;
   }
 
   private getSystemPrompt(capability: AgentCapability): string {
     return `You are an expert reasoning agent specialized in ${capability.name}.
-
 Your core competencies: ${capability.specializations.join(', ')}
 
-CRITICAL FORMATTING RULES:
-1. Every reasoning step must begin with [TYPE:CONCEPT|LOGICAL_FORM] format
-2. Types: OBSERVATION, INFERENCE, DEDUCTION, ANALYSIS, PREDICTION, HYPOTHESIS, SYNTHESIS
-3. Concepts should be 1-3 words, descriptive, using underscores for spaces
-4. Logical forms are optional but encouraged for formal reasoning
-5. Use predicate logic notation: P(x), ∀x, ∃x, →, ∧, ∨, ¬, ↔
-6. One reasoning step per line
-7. Build logical connections between steps
+Generate step-by-step reasoning using this EXACT format:
+[TYPE:CONCEPT|LOGICAL_FORM] explanation
 
-LOGICAL NOTATION:
-- Predicates: CapitalCase(args) e.g., Temperature(high), Causes(x,y)
-- Universal: ∀x(P(x) → Q(x)) means "for all x, if P(x) then Q(x)"
-- Existential: ∃x(P(x) ∧ Q(x)) means "there exists x such that P(x) and Q(x)"
-- Implication: P → Q (if P then Q)
-- Conjunction: P ∧ Q (P and Q)
-- Disjunction: P ∨ Q (P or Q)
-- Negation: ¬P (not P)
+Types: OBSERVATION, INFERENCE, ANALYSIS, DEDUCTION, HYPOTHESIS, PREDICTION, SYNTHESIS, ANALOGY, INDUCTION
 
-You excel at structured, logical thinking and always follow the specified format precisely.`;
+The format is CRITICAL - every line of reasoning must start with [TYPE:CONCEPT].
+Logical forms (|LOGICAL_FORM) are optional but encouraged for formal reasoning.
+
+Examples:
+[OBSERVATION:moon_gravity|Gravity(moon, earth)] The moon exerts gravitational force on Earth
+[INFERENCE:differential_pull|Distance(near) > Distance(far) → Force(near) > Force(far)] Closer water experiences stronger pull
+[ANALYSIS:force_variation|Analyze(gravity_field)] Gravitational field varies across Earth's surface
+[PREDICTION:high_tide|Location(x) ∧ Time(t) → Tide_height(h)] We can predict tide height at any location and time
+
+Always answer the actual question posed, not analyze the words themselves.`;
   }
 
   private parseReasoningSteps(content: string, capability: AgentCapability): ReasoningStep[] {
@@ -1177,6 +1179,10 @@ You excel at structured, logical thinking and always follow the specified format
     if (lower.includes('therefore') || lower.includes('thus')) return 'deduction';
     if (lower.includes('likely') || lower.includes('probably')) return 'inference';
     if (lower.includes('predict')) return 'prediction';
+    if (lower.includes('similar') || lower.includes('like') || lower.includes('analogy')) return 'analogy';
+    if (lower.includes('pattern') || lower.includes('generalize')) return 'induction';
+    if (lower.includes('hypothesis') || lower.includes('suppose')) return 'abduction';
+    if (lower.includes('analyze') || lower.includes('examine')) return 'analogy'; // Keep for backward compatibility
     return 'inference';
   }
 
@@ -1191,11 +1197,13 @@ You excel at structured, logical thinking and always follow the specified format
       'OBSERVATION': 'observation',
       'INFERENCE': 'inference',
       'DEDUCTION': 'deduction',
-      'ANALYSIS': 'analogy',  // Map ANALYSIS to analogy
+      'ANALYSIS': 'analogy',        // Keeping as-is for backward compatibility
       'PREDICTION': 'prediction',
-      'HYPOTHESIS': 'abduction',  // Map HYPOTHESIS to abduction
-      'CONCLUSION': 'synthesis',  // Map CONCLUSION to synthesis
-      'SYNTHESIS': 'synthesis'   // Also map SYNTHESIS directly
+      'HYPOTHESIS': 'abduction',     // Map HYPOTHESIS to abduction
+      'SYNTHESIS': 'synthesis',
+      'ANALOGY': 'analogy',         // Proper ANALOGY mapping
+      'INDUCTION': 'induction',      // Proper INDUCTION mapping
+      'CONCLUSION': 'synthesis'      // Map CONCLUSION to synthesis
     };
     
     return typeMap[type.toUpperCase()] || 'inference';
@@ -1222,11 +1230,11 @@ You excel at structured, logical thinking and always follow the specified format
       'observation': 0.85,    // Direct observations are high confidence
       'deduction': 0.80,      // Logical deductions are fairly confident
       'synthesis': 0.80,      // Conclusions/synthesis from evidence
-      'analogy': 0.75,        // Analysis involves interpretation
+      'analogy': 0.75,        // Analogical reasoning involves interpretation
       'inference': 0.70,      // Inferences have more uncertainty
+      'induction': 0.70,      // Inductive reasoning from specific to general
       'prediction': 0.65,     // Predictions are inherently uncertain
       'abduction': 0.60,      // Hypotheses are most uncertain
-      'induction': 0.70,      // Inductive reasoning
       'critique': 0.75        // Critical evaluation
     };
     
