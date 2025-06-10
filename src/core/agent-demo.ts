@@ -149,6 +149,50 @@ Return ONLY the JSON object, no explanation or additional text.`;
     return normalizeSingleResponse;
   }
 
+  if (request.metadata?.purpose === 'analyze-logical-stmt') {
+    const analyzeSingleRequest: LLMRequest = {
+      ...request
+    };
+
+    const analyzeSingleResponse = await openAIAdapter.generateCompletion(analyzeSingleRequest);
+
+    // Debug: Log raw response if enabled
+    if (process.env.DEBUG_OPENAI_RESPONSES === 'true') {
+      console.log('\n[DEBUG] Raw OpenAI Request:');
+      console.log(analyzeSingleRequest.systemPrompt);
+      console.log(analyzeSingleRequest.prompt);
+      console.log('[/DEBUG]\n');
+
+      console.log('\n[DEBUG] Raw OpenAI Response:');
+      console.log(analyzeSingleResponse.content);
+      console.log('[/DEBUG]\n');
+    }
+
+    return analyzeSingleResponse;
+  }
+
+  if (request.metadata?.purpose === 'query-contradiction') {
+    const queryContraRequest: LLMRequest = {
+      ...request
+    };
+
+    const queryContraResponse = await openAIAdapter.generateCompletion(queryContraRequest);
+
+    // Debug: Log raw response if enabled
+    if (process.env.DEBUG_OPENAI_RESPONSES === 'true') {
+      console.log('\n[DEBUG] Raw OpenAI Request:');
+      console.log(queryContraRequest.systemPrompt);
+      console.log(queryContraRequest.prompt);
+      console.log('[/DEBUG]\n');
+
+      console.log('\n[DEBUG] Raw OpenAI Response:');
+      console.log(queryContraResponse.content);
+      console.log('[/DEBUG]\n');
+    }
+
+    return queryContraResponse;
+  }
+
   // For regular queries, create a system prompt that enforces structured reasoning
   const structuredReasoningPrompt = `You are a scientific reasoning system. For any question, provide a step-by-step analysis using this EXACT format:
 
@@ -336,7 +380,7 @@ async function example1_basicQueryProcessing() {
   const message = await agent.processQuery(query, { domain: 'climate_science' }, openAILLMInterface);
   
   // Display comprehensive reasoning chain visualization
-  displayReasoningChain(message);
+  await displayReasoningChain(message, openAILLMInterface);
   
   // Display HTM state visualization
   visualizeHTMState(message.metadata.htmState);
@@ -1085,7 +1129,7 @@ async function example5_complexReasoning() {
   }, openAILLMInterface);
   
   // Display full reasoning chain with graph
-  displayReasoningChain(message);
+  await displayReasoningChain(message, openAILLMInterface);
   
   // Visualize reasoning structure as a graph
   console.log('\n╔══════════════════════════════════════════════════════════════════════╗');

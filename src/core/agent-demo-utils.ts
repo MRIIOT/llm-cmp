@@ -17,15 +17,16 @@ import {
 } from '../types/index.js';
 
 import {
-  LogicalProofValidator,
+  EnhancedLogicalProofValidator,
+  type LLMInterface,
   visualizeLogicalProof,
   createLogicalDependencyGraph
-} from './logical-proof-validator.js';
+} from './logical-proof-validator-enhanced.js';
 
 /**
  * Format and display complete reasoning chain with visual elements
  */
-export function displayReasoningChain(message: Message): void {
+export async function displayReasoningChain(message: Message, llmInterface?: LLMInterface): Promise<void> {
   const reasoning = message.content.reasoning;
   
   console.log('\n╔══════════════════════════════════════════════════════════════════════╗');
@@ -52,9 +53,16 @@ export function displayReasoningChain(message: Message): void {
   // Validate and display logical proof if available
   if (!reasoning.logicalProof) {
     // Generate logical proof validation
-    const validator = new LogicalProofValidator();
-    const proof = validator.validateReasoningChain(reasoning);
-    reasoning.logicalProof = proof;
+    // Enhanced validator requires LLM interface
+    if (llmInterface) {
+      console.log('\n🔬 Using Enhanced Logical Proof Validator with LLM-powered contradiction detection...');
+      const validator = new EnhancedLogicalProofValidator(llmInterface, { enableLLMValidation: true });
+      const proof = await validator.validateReasoningChainAsync(reasoning);
+      reasoning.logicalProof = proof;
+    } else {
+      console.log('\n⚠️  LLM interface required for logical proof validation');
+      console.log('   Enhanced validator requires LLM for accurate contradiction detection');
+    }
   }
   
   if (reasoning.logicalProof) {
