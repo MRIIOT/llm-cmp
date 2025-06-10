@@ -193,128 +193,136 @@ Return ONLY the JSON object, no explanation or additional text.`;
     return queryContraResponse;
   }
 
-  // For regular queries, create a system prompt that enforces structured reasoning
-  const structuredReasoningPrompt = `You are a scientific reasoning system. For any question, provide a step-by-step analysis using this EXACT format:
+  if (request.metadata?.purpose === 'generate-reasoning') {
 
-[TYPE:concept|logical_notation] explanation
+    // For regular queries, create a system prompt that enforces structured reasoning
+    const structuredReasoningPrompt = `You are a scientific reasoning system. For any question, provide a step-by-step analysis using this EXACT format:
+  
+  [TYPE:concept|logical_notation] explanation
+  
+  Types: OBSERVATION, INFERENCE, ANALYSIS, DEDUCTION, SYNTHESIS, PREDICTION
+  
+  Example question: "What causes ocean tides?"
+  Example answer:
+  [OBSERVATION:moon_gravity|Gravity(moon, earth)] The moon exerts gravitational force on Earth
+  [OBSERVATION:water_mobility|Water(liquid, mobile)] Ocean water can move freely unlike solid land
+  [INFERENCE:differential_pull|Distance(near) > Distance(far) → Force(near) > Force(far)] Closer water experiences stronger pull
+  [DEDUCTION:bulge_formation|Differential_force → Water_bulge] This creates water bulges on near and far sides
+  [SYNTHESIS:tidal_cycle|Earth_rotation + Bulges → Tides(12.5hr_cycle)] Earth's rotation through bulges creates tidal cycles
+  
+  Your answer MUST use this format. Answer the actual scientific question, not analyze the words.`;
 
-Types: OBSERVATION, INFERENCE, ANALYSIS, DEDUCTION, SYNTHESIS, PREDICTION
+    const enhancedRequest: LLMRequest = {
+      ...request,
+      prompt: `Question: ${request.prompt}`, // Make it clear this is the question to answer
+      systemPrompt: structuredReasoningPrompt,
+      temperature: request.temperature ?? 0.3, // Even lower temperature for better consistency
+      maxTokens: request.maxTokens ?? 1500
+    };
 
-Example question: "What causes ocean tides?"
-Example answer:
-[OBSERVATION:moon_gravity|Gravity(moon, earth)] The moon exerts gravitational force on Earth
-[OBSERVATION:water_mobility|Water(liquid, mobile)] Ocean water can move freely unlike solid land
-[INFERENCE:differential_pull|Distance(near) > Distance(far) → Force(near) > Force(far)] Closer water experiences stronger pull
-[DEDUCTION:bulge_formation|Differential_force → Water_bulge] This creates water bulges on near and far sides
-[SYNTHESIS:tidal_cycle|Earth_rotation + Bulges → Tides(12.5hr_cycle)] Earth's rotation through bulges creates tidal cycles
+    try {
+      const response = await openAIAdapter.generateCompletion(enhancedRequest);
 
-Your answer MUST use this format. Answer the actual scientific question, not analyze the words.`;
+      // Debug: Log raw response if enabled
+      if (process.env.DEBUG_OPENAI_RESPONSES === 'true') {
+        console.log('\n[DEBUG] Raw OpenAI Request:');
+        console.log(enhancedRequest.systemPrompt);
+        console.log(enhancedRequest.prompt);
+        console.log('[/DEBUG]\n');
 
-  const enhancedRequest: LLMRequest = {
-    ...request,
-    prompt: `Question: ${request.prompt}`, // Make it clear this is the question to answer
-    systemPrompt: structuredReasoningPrompt,
-    temperature: request.temperature ?? 0.3, // Even lower temperature for better consistency
-    maxTokens: request.maxTokens ?? 1500
-  };
+        console.log('\n[DEBUG] Raw OpenAI Response:');
+        console.log(response.content);
+        console.log('[/DEBUG]\n');
+      }
 
-  try {
-    const response = await openAIAdapter.generateCompletion(enhancedRequest);
-    
-    // Debug: Log raw response if enabled
-    if (process.env.DEBUG_OPENAI_RESPONSES === 'true') {
-      console.log('\n[DEBUG] Raw OpenAI Request:');
-      console.log(enhancedRequest.systemPrompt);
-      console.log(enhancedRequest.prompt);
-      console.log('[/DEBUG]\n');
+      // Validate that the response follows the expected format
+      const lines = response.content.split('\n').filter(line => line.trim());
+      const properlyFormattedLines = lines.filter(line =>
+          line.match(/^\[[\w_]+:[\w_]+\|.+?\]/)
+      );
 
-      console.log('\n[DEBUG] Raw OpenAI Response:');
-      console.log(response.content);
-      console.log('[/DEBUG]\n');
+      // If less than 50% of lines are properly formatted, try to fix
+      if (properlyFormattedLines.length < lines.length * 0.5) {
+        console.warn(`Format compliance: ${properlyFormattedLines.length}/${lines.length} lines properly formatted`);
+
+        // Try to fix common issues
+        const fixedContent = lines.map((line, idx) => {
+          line = line.trim();
+
+          // Skip empty lines
+          if (!line) return '';
+
+          // Check if line already has correct format
+          if (line.match(/^\[[\w_]+:[\w_]+\|.+?\]/)) {
+            return line;
+          }
+
+          // Try to extract TYPE if it's mentioned
+          const typeMatch = line.match(/^(OBSERVATION|INFERENCE|ANALYSIS|DEDUCTION|HYPOTHESIS|PREDICTION|SYNTHESIS|ANALOGY|INDUCTION)[::\s]/i);
+          if (typeMatch) {
+            const type = typeMatch[1].toUpperCase();
+            const content = line.substring(typeMatch[0].length).trim();
+            const concept = `step_${idx}`;
+            const logicalForm = `Statement(${idx})`;
+            return `[${type}:${concept}|${logicalForm}] ${content}`;
+          }
+
+          // Otherwise, try to infer type from content
+          const lowerLine = line.toLowerCase();
+          let type = 'OBSERVATION';
+          let concept = `step_${idx}`;
+
+          if (lowerLine.includes('therefore') || lowerLine.includes('thus') || lowerLine.includes('conclude')) {
+            type = 'DEDUCTION';
+            concept = 'conclusion';
+          } else if (lowerLine.includes('based on') || lowerLine.includes('from this') || lowerLine.includes('infer')) {
+            type = 'INFERENCE';
+            concept = 'inference';
+          } else if (lowerLine.includes('predict') || lowerLine.includes('will') || lowerLine.includes('future')) {
+            type = 'PREDICTION';
+            concept = 'prediction';
+          } else if (lowerLine.includes('analysis') || lowerLine.includes('examining') || lowerLine.includes('consider')) {
+            type = 'ANALYSIS';
+            concept = 'analysis';
+          } else if (lowerLine.includes('similar') || lowerLine.includes('like') || lowerLine.includes('compared to')) {
+            type = 'ANALOGY';
+            concept = 'comparison';
+          } else if (lowerLine.includes('overall') || lowerLine.includes('summary') || lowerLine.includes('together')) {
+            type = 'SYNTHESIS';
+            concept = 'synthesis';
+          } else if (lowerLine.includes('observe') || lowerLine.includes('data') || lowerLine.includes('evidence')) {
+            type = 'OBSERVATION';
+            concept = 'observation';
+          }
+
+          // Create a simple logical form
+          const logicalForm = `Statement(${concept})`;
+
+          return `[${type}:${concept}|${logicalForm}] ${line}`;
+        }).filter(line => line.trim()).join('\n');
+
+        response.content = fixedContent;
+      }
+
+      return response;
+    } catch (error) {
+      // Re-throw with more context
+      if (error instanceof LLMError) {
+        throw error;
+      }
+
+      throw new LLMError(
+          `OpenAI API call failed: ${error instanceof Error ? error.message : String(error)}`,
+          'OPENAI_API_ERROR',
+          {originalError: error}
+      );
     }
-
-    // Validate that the response follows the expected format
-    const lines = response.content.split('\n').filter(line => line.trim());
-    const properlyFormattedLines = lines.filter(line => 
-      line.match(/^\[[\w_]+:[\w_]+\|.+?\]/)
-    );
-    
-    // If less than 50% of lines are properly formatted, try to fix
-    if (properlyFormattedLines.length < lines.length * 0.5) {
-      console.warn(`Format compliance: ${properlyFormattedLines.length}/${lines.length} lines properly formatted`);
-      
-      // Try to fix common issues
-      const fixedContent = lines.map((line, idx) => {
-        line = line.trim();
-        
-        // Skip empty lines
-        if (!line) return '';
-        
-        // Check if line already has correct format
-        if (line.match(/^\[[\w_]+:[\w_]+\|.+?\]/)) {
-          return line;
-        }
-        
-        // Try to extract TYPE if it's mentioned
-        const typeMatch = line.match(/^(OBSERVATION|INFERENCE|ANALYSIS|DEDUCTION|HYPOTHESIS|PREDICTION|SYNTHESIS|ANALOGY|INDUCTION)[::\s]/i);
-        if (typeMatch) {
-          const type = typeMatch[1].toUpperCase();
-          const content = line.substring(typeMatch[0].length).trim();
-          const concept = `step_${idx}`;
-          const logicalForm = `Statement(${idx})`;
-          return `[${type}:${concept}|${logicalForm}] ${content}`;
-        }
-        
-        // Otherwise, try to infer type from content
-        const lowerLine = line.toLowerCase();
-        let type = 'OBSERVATION';
-        let concept = `step_${idx}`;
-        
-        if (lowerLine.includes('therefore') || lowerLine.includes('thus') || lowerLine.includes('conclude')) {
-          type = 'DEDUCTION';
-          concept = 'conclusion';
-        } else if (lowerLine.includes('based on') || lowerLine.includes('from this') || lowerLine.includes('infer')) {
-          type = 'INFERENCE';
-          concept = 'inference';
-        } else if (lowerLine.includes('predict') || lowerLine.includes('will') || lowerLine.includes('future')) {
-          type = 'PREDICTION';
-          concept = 'prediction';
-        } else if (lowerLine.includes('analysis') || lowerLine.includes('examining') || lowerLine.includes('consider')) {
-          type = 'ANALYSIS';
-          concept = 'analysis';
-        } else if (lowerLine.includes('similar') || lowerLine.includes('like') || lowerLine.includes('compared to')) {
-          type = 'ANALOGY';
-          concept = 'comparison';
-        } else if (lowerLine.includes('overall') || lowerLine.includes('summary') || lowerLine.includes('together')) {
-          type = 'SYNTHESIS';
-          concept = 'synthesis';
-        } else if (lowerLine.includes('observe') || lowerLine.includes('data') || lowerLine.includes('evidence')) {
-          type = 'OBSERVATION';
-          concept = 'observation';
-        }
-        
-        // Create a simple logical form
-        const logicalForm = `Statement(${concept})`;
-        
-        return `[${type}:${concept}|${logicalForm}] ${line}`;
-      }).filter(line => line.trim()).join('\n');
-
-      response.content = fixedContent;
-    }
-
-    return response;
-  } catch (error) {
-    // Re-throw with more context
-    if (error instanceof LLMError) {
-      throw error;
-    }
-    
-    throw new LLMError(
-      `OpenAI API call failed: ${error instanceof Error ? error.message : String(error)}`,
-      'OPENAI_API_ERROR',
-      { originalError: error }
-    );
   }
+
+  throw new LLMError(
+      `OpenAI API call skipped due to metadata.purpose being empty!`,
+      'OPENAI_API_ERROR'
+  );
 }
 
 /**

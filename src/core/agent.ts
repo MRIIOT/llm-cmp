@@ -359,7 +359,7 @@ export class Agent {
         systemPrompt: this.getSystemPrompt(capability),
         temperature: 0.7,
         maxTokens: 500,
-        metadata: { agentId: this.id, capability: capability.id }
+        metadata: { agentId: this.id, capability: capability.id, purpose: "generate-reasoning" }
       });
       
       // Parse reasoning steps

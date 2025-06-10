@@ -394,11 +394,12 @@ This phase has **URGENT PRIORITY** as the current validation system is actively 
 - [✅] Update all imports to use EnhancedLogicalProofValidator instead
 - [✅] Remove any tests specific to the original validator
 - [✅] Ensure no code depends on the broken implementation
+- [✅] Fix LLM model parameter (changed from 'default' to 'gpt-3.5-turbo')
 
 ### Current Status
 ✅ **Phase 1 Complete (except human testing)** - Hierarchical Hash Encoder implemented and integrated
 ✅ **Phase 1.1 Complete (except human testing)** - Enhanced Logical Proof Validator implemented with LLM-powered contradiction detection
-✅ **Phase 1.2 Complete** - Original LogicalProofValidator removed
+✅ **Phase 1.2 Complete** - Original LogicalProofValidator removed and model parameter fixed
 
 ### Next Steps
 1. Human to run `npm run build && node dist/tests/hierarchical-encoding.test.js` to verify Phase 1 implementation
@@ -424,6 +425,7 @@ This phase has **URGENT PRIORITY** as the current validation system is actively 
   - Removed src/core/logical-proof-validator.ts file completely
   - Updated test file to remove import of original validator
   - Fixed TypeScript error in visualization function for substitutions map
+  - Fixed LLM model parameter from 'default' to 'gpt-3.5-turbo' for OpenAI compatibility
   - LLM interface now required for logical proof validation (no fallback)
   - Build completes successfully with no errors
 - **Phase 2 Enhancement**: Ghost token mechanism will enable richer relationship building:

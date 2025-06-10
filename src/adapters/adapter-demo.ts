@@ -238,7 +238,7 @@ async function example5_advancedFeatures() {
   adapter.setCacheEnabled(true);
   
   const cachedRequest: LLMRequest = {
-    model: 'gpt-4-turbo-preview',
+    model: 'gpt-3.5-turbo',
     prompt: 'What is 2+2?',
     systemPrompt: 'Answer directly.',
     temperature: 0,
