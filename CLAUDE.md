@@ -80,3 +80,21 @@ From existing documentation:
 - Preserve existing functionality while adding enhancements
 - Strong emphasis on type safety and error handling
 - Modular design allows independent component evolution
+
+## Recent Enhancements
+
+### Ghost Tokens (Phase 2)
+- **Purpose**: Create implicit semantic bridges between concepts without requiring multiple co-occurrences
+- **Implementation**: LLM extracts "ghost tokens" - conceptual bridges with confidence scores
+- **Example**: "currency" ←→ [risk:0.85] ←→ "volatility"
+- **Edge Toggling**: Fine-tune semantic relationships by enabling/disabling edges
+- **Configuration**: 
+  - `enableGhostTokens: true` - Enable ghost token extraction
+  - `enableEdgeToggling: true` - Enable relationship control
+  - `maxGhostTokens: 5` - Limit ghost tokens per query
+  - `minGhostTokenProbability: 0.3` - Filter low-confidence tokens
+
+### Testing Ghost Tokens
+- `node dist/tests/ghost-token-test.js` - Demonstrates ghost token functionality
+- Shows how single queries establish semantic relationships
+- Demonstrates edge toggling for debugging anomaly detection

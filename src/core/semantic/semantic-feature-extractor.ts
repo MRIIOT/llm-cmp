@@ -6,24 +6,29 @@
 import { LLMRequest, LLMResponse } from '../../types/index.js';
 import { 
   SemanticFeatures, 
+  GhostToken,
   SemanticEncodingError, 
   SemanticEncodingException,
-  DEFAULT_SEMANTIC_CONFIG 
+  DEFAULT_SEMANTIC_CONFIG,
+  SemanticEncodingConfig
 } from './semantic-types.js';
 
 export class SemanticFeatureExtractor {
   private readonly llmInterface: (request: LLMRequest) => Promise<LLMResponse>;
   private readonly temperature: number;
   private readonly maxTokens: number;
+  private readonly config: SemanticEncodingConfig;
 
   constructor(
     llmInterface: (request: LLMRequest) => Promise<LLMResponse>,
     temperature: number = DEFAULT_SEMANTIC_CONFIG.llmTemperature,
-    maxTokens: number = DEFAULT_SEMANTIC_CONFIG.llmMaxTokens
+    maxTokens: number = DEFAULT_SEMANTIC_CONFIG.llmMaxTokens,
+    config: SemanticEncodingConfig = DEFAULT_SEMANTIC_CONFIG
   ) {
     this.llmInterface = llmInterface;
     this.temperature = temperature;
     this.maxTokens = maxTokens;
+    this.config = config;
   }
 
   /**
@@ -57,7 +62,7 @@ export class SemanticFeatureExtractor {
    * Build the extraction prompt
    */
   private buildExtractionPrompt(text: string): string {
-    return `Extract semantic features from this text for neural encoding.
+    const basePrompt = `Extract semantic features from this text for neural encoding.
 
 TEXT: "${text}"
 
@@ -76,7 +81,11 @@ Return ONLY a valid JSON object (no markdown, no explanation) with this exact st
   "relationships": ["relationship1", "relationship2"],
   "intent": "statement",
   "complexity": 0.5,
-  "temporalAspect": false
+  "temporalAspect": false${this.config.enableGhostTokens ? `,
+  "ghostTokens": [
+    {"token": "bridge1", "probability": 0.8, "type": "bridge"},
+    {"token": "context1", "probability": 0.6, "type": "context"}
+  ]` : ''}
 }
 
 Requirements:
@@ -86,9 +95,15 @@ Requirements:
 - relationships: action verbs as strings
 - intent: must be one of: "question", "statement", "command", "analysis"
 - complexity: number between 0 and 1
-- temporalAspect: boolean true or false
+- temporalAspect: boolean true or false${this.config.enableGhostTokens ? `
+- ghostTokens: ${this.config.maxGhostTokens} implicit conceptual bridges that connect the main concepts
+  - token: the bridging concept/word
+  - probability: confidence score between 0 and 1 (higher = stronger bridge)
+  - type: "bridge" (connects concepts), "context" (provides context), or "implicit" (implied connection)` : ''}
 
 CRITICAL: Return ONLY the JSON object, no other text.`;
+
+    return basePrompt;
   }
 
   /**
@@ -156,6 +171,11 @@ Your task is to extract semantic features from text for neural encoding. Focus o
         complexity: this.validateNumber(parsed.complexity, 0.5),
         temporalAspect: Boolean(parsed.temporalAspect)
       };
+
+      // Add ghost tokens if enabled
+      if (this.config.enableGhostTokens && parsed.ghostTokens) {
+        features.ghostTokens = this.validateGhostTokens(parsed.ghostTokens);
+      }
 
       return features;
     } catch (error) {
@@ -275,6 +295,28 @@ Your task is to extract semantic features from text for neural encoding. Focus o
   }
 
   /**
+   * Validate ghost tokens array
+   */
+  private validateGhostTokens(ghostTokens: any): GhostToken[] {
+    if (!Array.isArray(ghostTokens)) {
+      return [];
+    }
+
+    const validTypes: GhostToken['type'][] = ['bridge', 'context', 'implicit'];
+    
+    return ghostTokens
+      .filter(gt => gt && typeof gt === 'object' && gt.token && typeof gt.token === 'string')
+      .map(gt => ({
+        token: gt.token.trim().toLowerCase(),
+        probability: this.validateNumber(gt.probability, 0.5),
+        type: validTypes.includes(gt.type) ? gt.type : 'bridge'
+      }))
+      .filter(gt => gt.probability >= this.config.minGhostTokenProbability)
+      .sort((a, b) => b.probability - a.probability)
+      .slice(0, this.config.maxGhostTokens);
+  }
+
+  /**
    * Extract features with fallback to simpler extraction
    */
   async extractFeaturesWithFallback(text: string): Promise<SemanticFeatures> {
@@ -322,7 +364,7 @@ Your task is to extract semantic features from text for neural encoding. Focus o
       ['analyze', 'impact', 'affect', 'change', 'create', 'develop', 'consider', 'evaluate'].some(v => w.includes(v))
     ).slice(0, 5);
     
-    return {
+    const features: SemanticFeatures = {
       concepts: importantWords.length > 0 ? importantWords : ['general', 'query', 'analysis'],
       categories: categories.slice(0, 4),
       attributes: {
@@ -339,5 +381,12 @@ Your task is to extract semantic features from text for neural encoding. Focus o
       temporalAspect: text.includes('when') || text.includes('time') || text.includes('decade') || 
                      text.includes('year') || text.includes('future') || hasNumbers
     };
+
+    // Add empty ghost tokens array if enabled
+    if (this.config.enableGhostTokens) {
+      features.ghostTokens = [];
+    }
+
+    return features;
   }
 }

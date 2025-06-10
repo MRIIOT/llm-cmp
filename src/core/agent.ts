@@ -41,7 +41,7 @@ import { BayesianNetwork } from '../evidence/bayesian/bayesian-network.js';
 import { InferenceEngine } from '../evidence/bayesian/inference-engine.js';
 import { UncertaintyMetrics } from '../evidence/uncertainty/uncertainty-metrics.js';
 import { AdaptiveAgent } from '../agents/dynamic/adaptive-agent.js';
-import { SemanticEncoder } from './semantic/index.js';
+import { SemanticEncoder, SemanticEncodingResult } from './semantic/index.js';
 import { DomainAwareAnomalyCalculator } from './htm/domain-aware-anomaly.js';
 
 export interface AgentConfig {
@@ -75,6 +75,7 @@ export class Agent {
   
   // Semantic encoding
   private semanticEncoder!: SemanticEncoder;
+  private lastSemanticEncoding: SemanticEncodingResult | null = null;
   
   // Domain-aware anomaly detection
   private domainAnomalyCalculator?: DomainAwareAnomalyCalculator;
@@ -158,7 +159,7 @@ export class Agent {
     if (!this.semanticEncoder) {
       this.semanticEncoder = new SemanticEncoder(llmInterface, {
         numColumns: this.config.htm.columnCount,
-        sparsity: 0.02,
+        sparsity: 0.08,  // Increased from 0.02 to allow more overlap
         // Pass through semantic configuration if provided
         ...(this.config.semantic || {})
       });
@@ -225,8 +226,16 @@ export class Agent {
    * Update temporal context with new query
    */
   private async updateTemporalContext(query: string): Promise<TemporalContext> {
-    // Encode query using semantic encoding
-    const encoding = await this.semanticEncoder.encodeWithFallback(query);
+    // Encode query using semantic encoding and store the full result
+    let encoding: boolean[];
+    try {
+      this.lastSemanticEncoding = await this.semanticEncoder.encode(query);
+      encoding = this.lastSemanticEncoding.encoding;
+    } catch (error) {
+      console.warn('Semantic encoding failed, using fallback:', error);
+      encoding = await this.semanticEncoder.encodeWithFallback(query);
+      this.lastSemanticEncoding = null;
+    }
     
     // Process through HTM
     const output = this.htmRegion.compute(encoding, true);
@@ -779,7 +788,16 @@ export class Agent {
     
     // Initialize domain-aware anomaly calculator if configured
     if (this.config.anomaly?.domainAwareScoring) {
-      this.domainAnomalyCalculator = new DomainAwareAnomalyCalculator(this.config.anomaly);
+      // Map AnomalyConfig to DomainAnomalyConfig
+      const domainConfig = {
+        temporalWindow: this.config.anomaly.temporalCoherence?.windowSize || 5,
+        smoothingFactor: this.config.anomaly.temporalCoherence?.smoothingFactor || 0.8,
+        minPatternOverlap: this.config.anomaly.domainSimilarity?.similarityThreshold || 0.3,
+        patternSimilarityBoost: this.config.anomaly.domainSimilarity?.similarityBoost || 0.7,
+        domainMemorySize: this.config.anomaly.patternMemory?.maxPatterns || 100,
+        domainDecayRate: this.config.anomaly.patternMemory?.decayRate || 0.98
+      };
+      this.domainAnomalyCalculator = new DomainAwareAnomalyCalculator(domainConfig);
     }
   }
 
@@ -966,7 +984,8 @@ Generate reasoning steps in this EXACT format. Each line must follow this patter
 Where:
 - TYPE is one of: OBSERVATION, INFERENCE, ANALYSIS, DEDUCTION, HYPOTHESIS, PREDICTION, SYNTHESIS, ANALOGY, INDUCTION
 - CONCEPT is a short descriptor (1-3 words, use underscores for spaces)
-- LOGICAL_FORM is optional formal notation using predicate logic
+- LOGICAL_FORM is required formal notation using predicate logic
+The format is CRITICAL - every line of reasoning must contain \`[TYPE:CONCEPT|LOGICAL_FORM] reasoning content here\`.
 
 LOGICAL NOTATION GUIDE (when applicable):
 - Predicates: Temperature(x), Causes(x,y), Increases(x)
@@ -988,7 +1007,7 @@ Question: "What causes ocean tides?"
 [INDUCTION:pattern_recognition|∀x(Celestial_body(x) → Causes_tides(x))] From moon and sun examples, all massive celestial bodies cause tidal effects
 
 IMPORTANT:
-- Each reasoning step MUST start with [TYPE:CONCEPT]
+- Each reasoning step MUST start with [TYPE:CONCEPT] and end with reasoning content.
 - Use formal notation when relationships/logic are clear
 - Build logical chains that support your conclusions
 - Answer the actual question, not analyze the words
@@ -1006,8 +1025,7 @@ Generate step-by-step reasoning using this EXACT format:
 
 Types: OBSERVATION, INFERENCE, ANALYSIS, DEDUCTION, HYPOTHESIS, PREDICTION, SYNTHESIS, ANALOGY, INDUCTION
 
-The format is CRITICAL - every line of reasoning must start with [TYPE:CONCEPT].
-Logical forms (|LOGICAL_FORM) are optional but encouraged for formal reasoning.
+The format is CRITICAL - every line of reasoning must contain \`[TYPE:CONCEPT|LOGICAL_FORM] explanation\`.
 
 Examples:
 [OBSERVATION:moon_gravity|Gravity(moon, earth)] The moon exerts gravitational force on Earth
@@ -1754,5 +1772,41 @@ Always answer the actual question posed, not analyze the words themselves.`;
     this.currentBelief = this.getInitialBelief();
     this.previousHTMPredictions = [];
     this.iteration = 0;
+  }
+
+  /**
+   * Get semantic features for a query (including ghost tokens)
+   * Useful for demonstrating ghost token extraction
+   */
+  public async getSemanticFeatures(
+    query: string,
+    llmInterface: (request: LLMRequest) => Promise<LLMResponse>
+  ): Promise<any> {
+    // Initialize semantic encoder if not already done
+    if (!this.semanticEncoder) {
+      this.semanticEncoder = new SemanticEncoder(llmInterface, {
+        numColumns: this.config.htm.columnCount,
+        sparsity: 0.08,  // Increased from 0.02 to allow more overlap
+        // Pass through semantic configuration if provided
+        ...(this.config.semantic || {})
+      });
+    }
+
+    try {
+      // Use the feature extractor directly to get features including ghost tokens
+      const result = await this.semanticEncoder.encode(query);
+      return result.features;
+    } catch (error) {
+      console.error('Failed to extract semantic features:', error);
+      return null;
+    }
+  }
+  
+  /**
+   * Get the last semantic encoding result (includes ghost tokens)
+   * This avoids making extra LLM calls just to display ghost tokens
+   */
+  public getLastSemanticEncoding(): SemanticEncodingResult | null {
+    return this.lastSemanticEncoding;
   }
 }

@@ -11,3 +11,5 @@ export * from './concept-normalizer.js';
 export * from './semantic-relationship-manager.js';
 export * from './adaptive-column-assigner.js';
 export * from './hierarchical-hash-encoder.js';
+export * from './concept-relationship-graph.js';
+export * from './ghost-aware-hierarchical-encoder.js';

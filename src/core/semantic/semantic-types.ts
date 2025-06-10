@@ -4,6 +4,20 @@
  */
 
 /**
+ * Ghost token representing implicit conceptual bridges between concepts
+ */
+export interface GhostToken {
+  /** The bridging concept/token */
+  token: string;
+  
+  /** Confidence score (0-1) for this bridge */
+  probability: number;
+  
+  /** Type of conceptual bridge */
+  type: 'bridge' | 'context' | 'implicit';
+}
+
+/**
  * Semantic features extracted from text by LLM
  */
 export interface SemanticFeatures {
@@ -34,6 +48,9 @@ export interface SemanticFeatures {
   
   /** Whether the text has time-related elements */
   temporalAspect: boolean;
+  
+  /** Ghost tokens - implicit conceptual bridges between main concepts */
+  ghostTokens?: GhostToken[];
 }
 
 /**
@@ -115,6 +132,18 @@ export interface SemanticEncodingConfig {
   
   /** Enable hierarchical hash encoding for natural concept overlap */
   enableHierarchicalEncoding: boolean;
+  
+  /** Enable ghost token extraction from LLM */
+  enableGhostTokens: boolean;
+  
+  /** Enable edge toggling for relationship control */
+  enableEdgeToggling: boolean;
+  
+  /** Maximum number of ghost tokens per query */
+  maxGhostTokens: number;
+  
+  /** Minimum probability threshold for ghost tokens */
+  minGhostTokenProbability: number;
 }
 
 /**
@@ -134,7 +163,11 @@ export const DEFAULT_SEMANTIC_CONFIG: SemanticEncodingConfig = {
   minRelationshipWeight: 0.1,
   enableConceptNormalization: true,
   enableRelationshipTracking: true,
-  enableHierarchicalEncoding: true // Enable hierarchical encoding by default
+  enableHierarchicalEncoding: true, // Enable hierarchical encoding by default
+  enableGhostTokens: true, // Enable ghost tokens by default
+  enableEdgeToggling: true, // Enable edge toggling by default
+  maxGhostTokens: 5, // Limit to 5 ghost tokens per query
+  minGhostTokenProbability: 0.3 // Filter out low-confidence ghost tokens
 };
 
 /**

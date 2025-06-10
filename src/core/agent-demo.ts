@@ -28,6 +28,8 @@ import {
 import { OpenAIAdapter } from '../adapters/openai-adapter.js';
 import { HierarchicalHashEncoder } from './semantic/hierarchical-hash-encoder.js';
 import { memoryEfficientDomainConfig, balancedDomainConfig } from './configs/memory-efficient-domain-config.js';
+import { topicSensitiveConfig, ultraSensitiveTopicConfig } from './configs/topic-sensitive-config.js';
+import { balancedAnomalyConfig } from './configs/balanced-anomaly-config.js';
 
 /**
  * OpenAI LLM interface for production use
@@ -57,10 +59,10 @@ async function openAILLMInterface(request: LLMRequest): Promise<LLMResponse> {
   if (request.metadata?.purpose === 'semantic_feature_extraction') {
     const text = request.prompt.match(/TEXT: "(.+)"/)?.[1] || request.prompt;
     
-    // Create a specific prompt for semantic feature extraction
+    // Create a specific prompt for semantic feature extraction with ghost tokens
     const semanticPrompt = `Extract semantic features from the following text and return ONLY a JSON object with this exact structure:
 {
-  "concepts": [list of 5 main concepts as strings],
+  "concepts": [list of 3-5 main concepts as strings],
   "categories": [list of 2-3 categories as strings],
   "attributes": {
     "abstractness": number between 0 and 1,
@@ -70,11 +72,24 @@ async function openAILLMInterface(request: LLMRequest): Promise<LLMResponse> {
     "actionability": number between 0 and 1,
     "temporality": number between 0 and 1
   },
-  "relationships": [list of 3 relationship types as strings],
-  "intent": "question" or "analysis" or "statement",
+  "relationships": [list of 2-3 relationship types as strings],
+  "intent": "question" or "analysis" or "statement" or "command",
   "complexity": number between 0 and 1,
-  "temporalAspect": boolean
+  "temporalAspect": boolean,
+  "ghostTokens": [
+    {
+      "token": "implicit bridge concept between main concepts",
+      "probability": confidence between 0.3 and 1.0,
+      "type": "bridge" or "context" or "implicit"
+    }
+  ]
 }
+
+The ghostTokens are implicit conceptual bridges that connect the main concepts:
+- "bridge": direct conceptual connection
+- "context": provides surrounding context
+- "implicit": implied connection
+Include 3-5 ghost tokens that represent concepts not explicitly mentioned but semantically connect the main concepts.
 
 TEXT: "${text}"
 
@@ -394,11 +409,11 @@ async function example1_basicQueryProcessing() {
  */
 async function example2_temporalPatterns() {
   console.log('\n\n=== Example 2: Temporal Pattern Recognition with Domain-Aware Anomaly ===\n');
-  console.log('✨ NEW: Using MEMORY-EFFICIENT domain configuration\n');
-  console.log('   • Smaller HTM (2048 columns) to prevent memory issues');
-  console.log('   • Still strong domain coherence (90% smoothing, 80% similarity boost)');
-  console.log('   • Balanced sparsity (5%) for good overlap without memory bloat');
-  console.log('   • Smaller pattern memory (100) but high retention (98% decay)\n');
+  console.log('✨ ENHANCED: Domain-aware anomaly scoring + Ghost tokens\n');
+  console.log('   • Ghost tokens create semantic bridges between concepts');
+  console.log('   • Domain similarity boost (70%) for related financial topics');
+  console.log('   • Temporal coherence smoothing (80%) reduces noise');
+  console.log('   • Pattern memory learns domains over time\n');
 
   const tunedConfig1: AgentConfig = {
     id: 'agent_temporal_002',
@@ -439,9 +454,10 @@ async function example2_temporalPatterns() {
         enablePhase2Enhancements: true,
         enableConceptNormalization: true,
         enableRelationshipTracking: true,
-        //semanticOverlapThreshold: 0.15,  // Added
-        //conceptDistanceMetric: 'weighted_jaccard',  // Added
-        //maxConceptDepth: 3  // Added
+        enableGhostTokens: true,  // Enable ghost token extraction
+        enableEdgeToggling: true,  // Enable edge toggling
+        maxGhostTokens: 5,  // Extract up to 5 ghost tokens
+        minGhostTokenProbability: 0.4  // Minimum confidence threshold
       },
       //domainCoherence: {  // Added section
       //  enabled: true,
@@ -493,19 +509,42 @@ async function example2_temporalPatterns() {
         enableHierarchicalEncoding: true,
         enablePhase2Enhancements: true,
         enableConceptNormalization: true,
-        enableRelationshipTracking: true
+        enableRelationshipTracking: true,
+        enableGhostTokens: true,  // Enable ghost token extraction
+        enableEdgeToggling: true,  // Enable edge toggling
+        maxGhostTokens: 5,  // Extract up to 5 ghost tokens
+        minGhostTokenProbability: 0.4  // Minimum confidence threshold
+      },
+      anomaly: {
+        domainAwareScoring: true,
+        temporalCoherence: {
+          windowSize: 5,
+          smoothingFactor: 0.8
+        },
+        domainSimilarity: {
+          similarityThreshold: 0.3,
+          similarityBoost: 0.7
+        },
+        patternMemory: {
+          maxPatterns: 100,
+          decayRate: 0.98,
+          minPatternSupport: 2
+        }
       }
     }
   }
 
-  // Use the memory-efficient configuration
-  const agent = new Agent(defaultConfig);
+  // Use balanced anomaly configuration for better topic detection
+  const agent = new Agent(balancedAnomalyConfig);
   
-  // For slightly better performance with more memory available, use:
-  // const agent = new Agent(balancedDomainConfig);
+  // Alternative configurations:
+  // const agent = new Agent(topicSensitiveConfig); // More sensitive but gets N/A
+  // const agent = new Agent(ultraSensitiveTopicConfig); // Maximum sensitivity
+  // const agent = new Agent(defaultConfig); // Original behavior
+  // const agent = new Agent(balancedDomainConfig); // Domain-optimized
 
   // Process a sequence of related queries
-  const queries = [
+  const allQueries = [
     "What causes market volatility?",
     "How do interest rates affect market volatility?",
     "Can we predict market volatility patterns?",
@@ -515,7 +554,7 @@ async function example2_temporalPatterns() {
     "How does inflation affect currency strength?",
     "What role do central banks play in currency stability?",
     "What are leading economic indicators to watch?",
-    "How to train a neural network for time series forecasting?",
+    "How to train a dog to sit and lay on command?",
     "What drives foreign exchange rate movements?",
     "How do monetary policy changes affect bond markets?",
     "What is the relationship between unemployment and inflation?",
@@ -538,51 +577,57 @@ async function example2_temporalPatterns() {
     "What are the dynamics of cross-border capital movements?"
   ];
   
+  // Limit queries for testing if environment variable is set
+  const queriesLimit = process.env.QUERIES_LIMIT ? parseInt(process.env.QUERIES_LIMIT) : allQueries.length;
+  const queries = allQueries.slice(0, queriesLimit);
+  
+  if (queriesLimit < allQueries.length) {
+    console.log(`📌 Running with limited queries (${queriesLimit} of ${allQueries.length}) for testing\n`);
+  }
+  
   console.log('Processing query sequence to learn temporal patterns...\n');
   
   // Create hierarchical encoder for overlap analysis
   const hierarchicalEncoder = new HierarchicalHashEncoder();
   const conceptEncodings: Map<string, number[]> = new Map();
-  
-  // First, demonstrate direct concept overlap with hierarchical encoding
-  console.log('╔══════════════════════════════════════════════════════════════════════╗');
-  console.log('║           HIERARCHICAL ENCODING DEMONSTRATION                         ║');
-  console.log('╚══════════════════════════════════════════════════════════════════════╝\n');
-  
-  const demoTerms = [
-    ['volatility', 'volatile'],
-    ['currency', 'currencies'],
-    ['market', 'marketplace'],
-    ['volatility', 'currency'],
-    ['chocolate', 'volatility']
-  ];
-  
-  console.log('   Direct concept overlap using hierarchical encoding:\n');
-  demoTerms.forEach(([term1, term2]) => {
-    const encoding1 = hierarchicalEncoder.encodeHierarchical(term1);
-    const encoding2 = hierarchicalEncoder.encodeHierarchical(term2);
-    const overlap = hierarchicalEncoder.calculateOverlap(encoding1, encoding2);
-    const overlapBar = createOverlapBar(overlap.overlapPercentage);
-    console.log(`   "${term1}" ↔ "${term2}": ${overlapBar} ${overlap.overlapPercentage.toFixed(1)}%`);
-  });
-  
-  console.log('\n   💡 Note: Related terms show natural overlap through shared bigrams');
-  console.log('   and structural similarity, even without explicit relationships.\n');
-  
+
   const messages: Message[] = [];
   for (let i = 0; i < queries.length; i++) {
     console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     console.log(`Query ${i + 1}: "${queries[i]}"`);
     const message = await agent.processQuery(queries[i], { sequence: i }, openAILLMInterface);
     messages.push(message);
-    
+
+    // Display ghost tokens from the last semantic encoding (no extra LLM call needed!)
+    console.log('\n   👻 Ghost Tokens (implicit semantic bridges):');
+    const lastEncoding = agent.getLastSemanticEncoding();
+    if (lastEncoding && lastEncoding.features.ghostTokens && lastEncoding.features.ghostTokens.length > 0) {
+      const features = lastEncoding.features;
+      const ghostTokens = features.ghostTokens!; // Non-null assertion since we checked above
+      for (const ghost of ghostTokens) {
+        const bar = '█'.repeat(Math.floor(ghost.probability * 10)) + '░'.repeat(10 - Math.floor(ghost.probability * 10));
+        console.log(`      - ${ghost.token.padEnd(20)} [${bar}] ${(ghost.probability * 100).toFixed(0)}% (${ghost.type})`);
+      }
+      
+      // Show semantic bridge if we have concepts
+      if (features.concepts.length >= 2) {
+        const bridge = ghostTokens[0];
+        console.log(`\n   🔗 Ghost Bridge: "${features.concepts[0]}" ←→ [${bridge.token}] ←→ "${features.concepts[1]}"`);
+      }
+    } else {
+      console.log('      (No ghost tokens extracted)');
+    }
+
     // Extract and encode main concepts for overlap analysis
     if (message.content.semanticPosition?.coordinates) {
       // Try to extract concepts from the reasoning chain or features
-      const mainConcepts: string[] = [];
+      let mainConcepts: string[] = [];
       
-      // Extract from reasoning steps
-      if (message.content.reasoning?.steps) {
+      // Prefer concepts from semantic encoding if available
+      if (lastEncoding && lastEncoding.features.concepts.length > 0) {
+        mainConcepts = lastEncoding.features.concepts;
+      } else if (message.content.reasoning?.steps) {
+        // Fallback to reasoning steps
         const concepts = message.content.reasoning.steps
           .slice(0, 3)
           .map(step => step.concept)
@@ -593,6 +638,11 @@ async function example2_temporalPatterns() {
       // If we have concepts, show them
       if (mainConcepts.length > 0) {
         console.log(`\n   📝 Key Concepts: ${mainConcepts.join(', ')}`);
+        
+        // Show encoding stats if available
+        if (lastEncoding) {
+          console.log(`   📊 Encoding Stats: ${lastEncoding.activeCount} active columns (${(lastEncoding.sparsity * 100).toFixed(2)}% sparsity)`);
+        }
         
         // Encode concepts and store for overlap calculation
         mainConcepts.forEach(concept => {
@@ -1294,8 +1344,8 @@ async function runAgentDemo() {
   
   try {
     // Run examples sequentially
-    await example1_basicQueryProcessing();
-    //await example2_temporalPatterns();
+    //await example1_basicQueryProcessing();
+    await example2_temporalPatterns();
     //await example3_bayesianBeliefs();
     //await example4_adaptation();
     //await example5_complexReasoning();

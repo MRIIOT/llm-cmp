@@ -570,21 +570,37 @@ export interface SemanticConfig {
   domainSpecificFeatures?: boolean;
   featureReuse?: number;
   conceptSimilarityBoost?: number;
+  // Ghost token parameters
+  enableGhostTokens?: boolean;
+  enableEdgeToggling?: boolean;
+  maxGhostTokens?: number;
+  minGhostTokenProbability?: number;
 }
 
 export interface AnomalyConfig {
   domainAwareScoring?: boolean;
+  temporalCoherence?: {
+    windowSize: number;
+    smoothingFactor: number;
+  };
+  domainSimilarity?: {
+    similarityThreshold: number;
+    similarityBoost: number;
+  };
+  patternMemory?: {
+    maxPatterns: number;
+    decayRate: number;
+    minPatternSupport: number;
+  };
+  // Legacy properties for backward compatibility
   inDomainThreshold?: number;
   crossDomainThreshold?: number;
   smoothingFactor?: number;
   domainTransitionPenalty?: number;
-  // Pattern similarity
   minPatternOverlap?: number;
   patternSimilarityBoost?: number;
-  // Temporal coherence
   temporalWindow?: number;
   temporalWeight?: number;
-  // Domain memory
   domainMemorySize?: number;
   domainDecayRate?: number;
 }

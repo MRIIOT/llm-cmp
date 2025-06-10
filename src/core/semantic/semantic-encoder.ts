@@ -20,6 +20,8 @@ import { ConceptNormalizer } from './concept-normalizer.js';
 import { SemanticRelationshipManager } from './semantic-relationship-manager.js';
 import { AdaptiveColumnAssigner } from './adaptive-column-assigner.js';
 import { HierarchicalHashEncoder } from './hierarchical-hash-encoder.js';
+import { GhostAwareHierarchicalEncoder } from './ghost-aware-hierarchical-encoder.js';
+import { ConceptRelationshipGraph, EdgeConfig } from './concept-relationship-graph.js';
 
 export class SemanticEncoder {
   private readonly config: SemanticEncodingConfig;
@@ -34,6 +36,9 @@ export class SemanticEncoder {
   
   // Hierarchical encoder
   private readonly hierarchicalEncoder?: HierarchicalHashEncoder;
+  
+  // Ghost-aware encoder (Phase 2)
+  private readonly ghostAwareEncoder?: GhostAwareHierarchicalEncoder;
 
   constructor(
     llmInterface: (request: LLMRequest) => Promise<LLMResponse>,
@@ -44,7 +49,8 @@ export class SemanticEncoder {
     this.featureExtractor = new SemanticFeatureExtractor(
       llmInterface,
       this.config.llmTemperature,
-      this.config.llmMaxTokens
+      this.config.llmMaxTokens,
+      this.config
     );
     this.featureCache = new SemanticFeatureCache(this.config);
     
@@ -53,6 +59,15 @@ export class SemanticEncoder {
       this.hierarchicalEncoder = new HierarchicalHashEncoder({
         // Use default config for now, can be customized later
       });
+      
+      // Initialize Ghost-Aware encoder if ghost tokens are enabled
+      if (this.config.enableGhostTokens) {
+        this.ghostAwareEncoder = new GhostAwareHierarchicalEncoder(
+          this.config.numColumns,
+          this.config.columnsPerConcept,
+          this.config
+        );
+      }
     }
     
     // Initialize Phase 2 components if enabled
@@ -88,9 +103,21 @@ export class SemanticEncoder {
 
       // Use Phase 2 enhancements if enabled
       let encoding: boolean[];
+      
+      // Combine all enhancement approaches when available
       if (this.config.enablePhase2Enhancements && this.columnAssigner) {
+        // Start with semantic enhancements (adaptive columns, normalization, etc.)
         encoding = await this.encodeWithSemanticEnhancements(features);
+        
+        // If ghost tokens are also enabled, enhance the encoding further
+        if (this.config.enableGhostTokens && this.ghostAwareEncoder) {
+          encoding = await this.enhanceWithGhostTokens(encoding, features);
+        }
+      } else if (this.config.enableGhostTokens && this.ghostAwareEncoder) {
+        // Use only ghost-aware encoding if semantic enhancements are disabled
+        encoding = await this.encodeWithGhostTokens(features);
       } else {
+        // Fallback to basic encoding
         encoding = this.featuresToSDR(features);
       }
 
@@ -115,6 +142,127 @@ export class SemanticEncoder {
         { text, error }
       );
     }
+  }
+
+  /**
+   * Enhance existing encoding with ghost token relationships
+   * This adds ghost-aware columns while preserving the base encoding
+   */
+  private async enhanceWithGhostTokens(
+    baseEncoding: boolean[], 
+    features: SemanticFeatures
+  ): Promise<boolean[]> {
+    // Create a copy to avoid modifying the original
+    const enhancedEncoding = [...baseEncoding];
+    
+    if (!features.ghostTokens || features.ghostTokens.length === 0) {
+      return enhancedEncoding; // No ghost tokens to enhance with
+    }
+    
+    // Update the concept graph with ghost tokens
+    this.ghostAwareEncoder!.updateConceptGraphWithGhosts(features);
+    
+    // Get ghost-based column additions for each concept pair
+    for (let i = 0; i < features.concepts.length; i++) {
+      for (let j = i + 1; j < features.concepts.length; j++) {
+        const concept1 = features.concepts[i];
+        const concept2 = features.concepts[j];
+        
+        // Find ghost tokens that might bridge these concepts
+        const bridgingGhosts = features.ghostTokens.filter(ghost => 
+          ghost.type === 'bridge' && ghost.probability >= this.config.minGhostTokenProbability
+        );
+        
+        if (bridgingGhosts.length > 0) {
+          // Get overlap columns based on ghost relationships
+          const ghostColumns = await this.getGhostOverlapColumns(
+            concept1, 
+            concept2, 
+            bridgingGhosts[0].probability
+          );
+          
+          // Add ghost-influenced columns (up to a limit to maintain sparsity)
+          const maxGhostColumns = Math.floor(this.config.columnsPerConcept * 0.2); // 20% additional
+          let addedCount = 0;
+          
+          for (const col of ghostColumns) {
+            if (col < enhancedEncoding.length && !enhancedEncoding[col] && addedCount < maxGhostColumns) {
+              enhancedEncoding[col] = true;
+              addedCount++;
+            }
+          }
+        }
+      }
+    }
+    
+    return enhancedEncoding;
+  }
+
+  /**
+   * Get ghost-influenced overlap columns for concept pair
+   */
+  private async getGhostOverlapColumns(
+    concept1: string, 
+    concept2: string, 
+    ghostProbability: number
+  ): Promise<number[]> {
+    // Calculate overlap based on ghost probability
+    const overlapRatio = ghostProbability * 0.15; // Max 15% overlap for high-confidence ghosts
+    const numOverlapColumns = Math.floor(this.config.columnsPerConcept * overlapRatio);
+    
+    // Generate deterministic columns based on concept pair and ghost relationship
+    const columns: number[] = [];
+    const seed = this.hashString(`${concept1}_ghost_${concept2}`);
+    
+    for (let i = 0; i < numOverlapColumns; i++) {
+      const col = (seed + i * 37) % this.config.numColumns;
+      columns.push(col);
+    }
+    
+    return columns;
+  }
+
+  /**
+   * Encoding with ghost token relationships (standalone)
+   */
+  private async encodeWithGhostTokens(features: SemanticFeatures): Promise<boolean[]> {
+    const encoding = new Array(this.config.numColumns).fill(false);
+    
+    // Encode each concept with ghost awareness
+    const conceptEncodings = await this.ghostAwareEncoder!.encodeConcepts(
+      features.concepts,
+      features
+    );
+    
+    // Merge all concept encodings
+    for (const conceptColumns of conceptEncodings) {
+      for (const col of conceptColumns) {
+        if (col < encoding.length) {
+          encoding[col] = true;
+        }
+      }
+    }
+    
+    // Also encode other features (categories, attributes, etc.)
+    const targetActive = Math.floor(this.config.numColumns * this.config.sparsity);
+    const currentActive = encoding.filter(bit => bit).length;
+    const remainingColumns = Math.max(0, targetActive - currentActive);
+    
+    if (remainingColumns > 0) {
+      // Add category encodings
+      const categoryColumns = Math.floor(remainingColumns * 0.4);
+      this.encodeCategories(features.categories, encoding, categoryColumns, currentActive);
+      
+      // Add attribute encodings
+      const attributeColumns = Math.floor(remainingColumns * 0.3);
+      this.encodeAttributes(features.attributes, encoding, attributeColumns, currentActive);
+      
+      // Add metadata
+      const metaColumns = Math.floor(remainingColumns * 0.3);
+      this.encodeMetadata(features, encoding, metaColumns, currentActive);
+    }
+    
+    return encoding;
   }
 
   /**
@@ -673,6 +821,10 @@ export class SemanticEncoder {
       enhancedStats.columnAssigner = this.columnAssigner.getColumnDistributionStats();
     }
     
+    if (this.ghostAwareEncoder) {
+      enhancedStats.ghostTokens = this.ghostAwareEncoder.getEncodingStats();
+    }
+    
     return enhancedStats;
   }
 
@@ -701,5 +853,95 @@ export class SemanticEncoder {
    */
   getConfig(): SemanticEncodingConfig {
     return { ...this.config };
+  }
+
+  // Ghost Token and Edge Toggling Methods
+
+  /**
+   * Encode concepts with ghost token relationships
+   */
+  async encodeConceptsWithGhosts(concepts: string[], features: SemanticFeatures): Promise<number[][]> {
+    if (!this.ghostAwareEncoder) {
+      throw new Error('Ghost token encoding is not enabled. Set enableGhostTokens to true in config.');
+    }
+    
+    return this.ghostAwareEncoder.encodeConcepts(concepts, features);
+  }
+
+  /**
+   * Toggle a relationship between two concepts
+   */
+  toggleRelationship(concept1: string, concept2: string, active: boolean): boolean {
+    if (!this.ghostAwareEncoder) {
+      throw new Error('Edge toggling is not enabled. Set enableEdgeToggling to true in config.');
+    }
+    
+    return this.ghostAwareEncoder.toggleRelationship(concept1, concept2, active);
+  }
+
+  /**
+   * Toggle a ghost-mediated relationship
+   */
+  toggleGhostRelationship(concept1: string, ghost: string, concept2: string, active: boolean): boolean {
+    if (!this.ghostAwareEncoder) {
+      throw new Error('Edge toggling is not enabled. Set enableEdgeToggling to true in config.');
+    }
+    
+    return this.ghostAwareEncoder.toggleGhostRelationship(concept1, ghost, concept2, active);
+  }
+
+  /**
+   * Get relationship status report
+   */
+  getRelationshipStatus() {
+    if (!this.ghostAwareEncoder) {
+      return { error: 'Ghost token encoding not enabled' };
+    }
+    
+    return this.ghostAwareEncoder.getRelationshipStatus();
+  }
+
+  /**
+   * Export edge configuration
+   */
+  exportEdgeConfiguration(): EdgeConfig | null {
+    if (!this.ghostAwareEncoder) {
+      return null;
+    }
+    
+    return this.ghostAwareEncoder.exportEdgeConfiguration();
+  }
+
+  /**
+   * Import edge configuration
+   */
+  importEdgeConfiguration(config: EdgeConfig): void {
+    if (!this.ghostAwareEncoder) {
+      throw new Error('Ghost token encoding is not enabled.');
+    }
+    
+    this.ghostAwareEncoder.importEdgeConfiguration(config);
+  }
+
+  /**
+   * Reset all edge states
+   */
+  resetEdgeStates(): void {
+    if (!this.ghostAwareEncoder) {
+      throw new Error('Ghost token encoding is not enabled.');
+    }
+    
+    this.ghostAwareEncoder.resetEdgeStates();
+  }
+
+  /**
+   * Get edge history between two concepts
+   */
+  getEdgeHistory(concept1: string, concept2: string) {
+    if (!this.ghostAwareEncoder) {
+      return [];
+    }
+    
+    return this.ghostAwareEncoder.getEdgeHistory(concept1, concept2);
   }
 }
