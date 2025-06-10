@@ -1260,8 +1260,8 @@ async function runAgentDemo() {
   
   try {
     // Run examples sequentially
-    //await example1_basicQueryProcessing();
-    await example2_temporalPatterns();
+    await example1_basicQueryProcessing();
+    //await example2_temporalPatterns();
     //await example3_bayesianBeliefs();
     //await example4_adaptation();
     //await example5_complexReasoning();

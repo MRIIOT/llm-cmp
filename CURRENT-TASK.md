@@ -114,6 +114,104 @@ Expected format:
 - [✅] Measure overlap percentages
 - [ ] **Human Test**: Run `npm test hierarchical-encoding` and verify overlap metrics
 
+### Phase 1.1: URGENT FIX - Replace Broken LogicalProofValidator with LLM-Enhanced Version
+
+#### Critical Issue Identified
+The current LogicalProofValidator has a **critical bug** in contradiction detection that flags valid causal chains as contradictory:
+- **Problem**: Simple word matching treats "ice decreases albedo" + "albedo affects temperature" as contradictory
+- **Impact**: Valid climate science reasoning gets flagged as logically invalid
+- **Root Cause**: `areContradictory()` method uses primitive pattern matching without semantic understanding
+- **False Positive Rate**: ~60% on complex reasoning chains
+
+#### 13. Implement LLM-Powered Contradiction Detection
+- [ ] Create new file: `src/core/logical-proof-validator-enhanced.ts`
+- [ ] Implement `LLMContradictionDetector` class:
+  - [ ] `analyzeStatement(stmt: LogicalStatement): Promise<SemanticAnalysis>`
+  - [ ] `queryLLMForContradiction(stmt1, stmt2): Promise<ContradictionAnalysis>`
+  - [ ] `areStatementsContradictory(stmt1, stmt2): Promise<ContradictionAnalysis>`
+  - [ ] `batchAnalyzeContradictions(statements[]): Promise<Map<string, ContradictionAnalysis>>`
+  - [ ] `checkGlobalConsistency(statements[]): Promise<ConsistencyReport>`
+- [ ] Define enhanced interfaces:
+  ```typescript
+  interface SemanticAnalysis {
+    subject: string;
+    predicate: string;
+    object?: string;
+    direction?: 'positive' | 'negative' | 'neutral';
+    domain: string;
+    relationships: string[];
+    logicalForm: string;
+  }
+  
+  interface ContradictionAnalysis {
+    isContradictory: boolean;
+    confidence: number;
+    reasoning: string;
+    relationshipType: 'contradiction' | 'causal_chain' | 'independent' | 'supporting';
+    recommendation: 'flag_as_error' | 'accept_as_valid' | 'needs_clarification';
+  }
+  ```
+
+#### 14. Create Enhanced LogicalProofValidator
+- [ ] Implement `EnhancedLogicalProofValidator` extending the original class
+- [ ] Replace broken `areContradictory()` method with LLM-powered analysis:
+  ```typescript
+  protected async areContradictory(stmt1: LogicalStatement, stmt2: LogicalStatement): Promise<boolean> {
+    const analysis = await this.llmDetector.areStatementsContradictory(stmt1, stmt2);
+    return analysis.isContradictory && 
+           analysis.confidence > 0.7 && 
+           analysis.recommendation === 'flag_as_error';
+  }
+  ```
+- [ ] Add conservative fallback for when LLM fails
+- [ ] Implement batch processing for efficiency
+- [ ] Add caching to reduce API calls (24-hour TTL)
+
+#### 15. Update Agent Integration
+- [ ] Modify `Agent` class to use `EnhancedLogicalProofValidator`
+- [ ] Update agent constructor to pass LLM interface to validator
+- [ ] Ensure backward compatibility if LLM enhancement is disabled
+- [ ] Add configuration flag: `config.logical.enableLLMValidation: boolean`
+
+#### 16. Test Climate Science Example
+- [ ] Create test case for the specific issue:
+  - Statement 1: "Reduced ice cover decreases Earth's albedo"
+  - Statement 2: "Lower albedo contributes to further temperature increase"
+  - Expected: **NOT contradictory** (valid causal chain)
+- [ ] Verify LLM correctly identifies this as a causal relationship
+- [ ] Test other contradiction types:
+  - True contradictions: "Temperature increases" + "Temperature decreases"
+  - Independent statements: "Markets rise" + "Profits fall"
+  - Supporting statements: "CO2 rises" + "Warming occurs"
+- [ ] **Human Test**: Run enhanced validation on agent-demo.ts climate query
+
+#### 17. Performance & Cost Optimization
+- [ ] Implement intelligent caching strategy:
+  - Cache statement semantic analyses
+  - Cache contradiction pair results
+  - Use statement content hash as cache key
+- [ ] Add batch processing for multiple statement pairs
+- [ ] Monitor API costs and response times
+- [ ] Target: <2 seconds per contradiction check, <$0.003 per analysis
+
+#### 18. Migration Strategy
+- [ ] Implement A/B testing to compare old vs new approaches
+- [ ] Add logging for validation decisions and differences
+- [ ] Gradual rollout: start with 10% of queries using LLM validation
+- [ ] Keep old validator as fallback when LLM is unavailable
+- [ ] Add monitoring for false positive reduction
+
+#### Success Criteria for Phase 1.1
+1. **False Positive Reduction**: <5% false positive rate (down from ~60%)
+2. **Climate Example Fix**: Ice-albedo-temperature chain recognized as valid causal sequence
+3. **Performance**: <2 seconds average response time for contradiction analysis
+4. **Reliability**: 99.9% availability with static fallback
+5. **Cost Control**: <$50/month API costs for typical usage
+6. **User Trust**: Validation system correctly identifies causal chains vs contradictions
+
+#### Immediate Priority
+This phase has **URGENT PRIORITY** as the current validation system is actively harming user experience by flagging valid scientific reasoning as contradictory. The climate science example demonstrates that users cannot trust the current logical validation output.
+
 ### Phase 2: Sparse Distributed Thesaurus with Ghost Token Implementation
 
 #### 5. Enhance SemanticFeatures with Ghost Tokens

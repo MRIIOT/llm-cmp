@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Debug Agent Demo" type="NodeJSConfigurationType" path-to-js-file="dist/core/run-agent-demo.js" working-dir="$PROJECT_DIR$">
     <envs>
-      <env name="DEBUG_OPENAI_RESPONSES" value="false" />
+      <env name="DEBUG_OPENAI_RESPONSES" value="true" />
     </envs>
     <EXTENSION ID="com.jetbrains.nodejs.run.NodeStartBrowserRunConfigurationExtension">
       <browser start="false" />
